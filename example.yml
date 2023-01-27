@@ -90,14 +90,14 @@
         dest: '{{ iso_temp_root_build_dir.path }}/iso/toinstall/ndp48-x86-x64-allos-enu.exe'
         force: true
         checksum: sha256:68c9986a8dcc0214d909aa1f31bee9fb5461bb839edca996a75b08ddffc1483f
-    - name: Download WMF 5.1"
+    - name: Download WMF 5.1
       ansible.builtin.get_url:
         url: >-
           https://download.microsoft.com/download/6/F/5/6F5FF66C-6775-42B0-86C4-47D41F2DA187/Win7-KB3191566-x86.zip
         dest: '{{ iso_temp_root_build_dir.path }}/iso/toinstall/Win7-KB3191566-x86.zip'
         force: true
         checksum: sha256:eb7e2c4ce2c6cb24206474a6cb8610d9f4bd3a9301f1cd8963b4ff64e529f563
-    - name: Download Virtio Drivers"
+    - name: Download Virtio Drivers
       ansible.builtin.get_url:
         url: >-
           https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.173-2/virtio-win.iso
