@@ -31,6 +31,9 @@ docker run --rm -it --device=/dev/kvm  \
     --mount=type=bind,source="${VMDISK_DIR}",target="${VMDISK_DIR}",z \
     --mount=type=bind,target="${VNC_SOCKET_DIR}",z \
     --mount=type=bind,source="${OS_ISO_SOURCE}",target="${OS_ISO}",z "${CONTAINER_IMAGE_NAME}"
+    
+# In abother terminal
+vncviewer /tmp/vnc/vnc 
 ```
 
 ### [Демо YouTube](https://www.youtube.com/watch?v=CyjWnvdco3U)
