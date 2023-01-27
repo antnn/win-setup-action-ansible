@@ -29,3 +29,5 @@ qemu-system-x86_64  -enable-kvm -smp $(nproc) -cpu host -pidfile /tmp/guest.pid 
  
 vncviewer /tmp/vnc/vnc
 ```
+
+### [Демо YouTube](https://www.youtube.com/watch?v=CyjWnvdco3U)
