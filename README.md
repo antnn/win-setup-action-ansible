@@ -2,7 +2,7 @@
 Антон Валишин
 Пример для вакансии junior DevOps
 
-### Запуск в qemu (по аналогии с nova-libvirt), нужен iso файл ОС
+### Запуск в qemu (как [nova-libvirt](https://github.com/openstack/kolla/tree/master/docker/nova/nova-libvirt)), нужен iso файл ОС
 ```bash
 # alias docker=podman
 git clone https://github.com/antnn/win-setup-action-ansible
