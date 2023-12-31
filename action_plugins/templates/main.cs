@@ -2,22 +2,95 @@ using System;
 using System.IO;
 using System.Diagnostics;
 using System.Management;
-using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
-using Dict = System.Collections.Generic.Dictionary<string, object>;
 using Microsoft.Win32;
+
+
+public class WinImageBuilderAutomation
+{
+    public static void Main()
+    {
+        var mainPs1Autostart = new Dictionary<string, object>
+        {
+            { "file", "start.ps1" },
+            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
+            { "destination", "%CONFIGDRIVE%" }
+        };
+
+        Autostart autostartAction = new Autostart(mainPs1Autostart);
+        autostartAction.Invoke();
+
+        string configDrivePath = ActionBase.ExpandString("%CONFIGDRIVE%");
+        string packageJsonPath = Path.Combine(configDrivePath, "package.json");
+
+        try
+        {
+            string packageJsonContent = File.ReadAllText(packageJsonPath);
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+
+            var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
+            serializer.RegisterConverters(converters);
+
+            var actions = serializer.Deserialize<List<IAction>>(packageJsonContent);
+
+            // Invoke each action
+            foreach (var action in actions)
+            {
+                action.Invoke();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("An error occurred: " + ex.Message);
+        }
+
+    }
+    public static void SetNetworksLocationToPrivate()
+    {
+        INetworkListManager nlm = (INetworkListManager)new NetworkListManagerClass();
+        IEnumerable networks = nlm.GetNetworks(NetworkConnectivityLevels.All);
+        foreach (INetwork network in networks)
+        {
+            network.SetCategory(NetworkCategory.Private);
+        }
+    }
+    public static void EnableAdministratorAccount(string accountName)
+    {
+        using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(
+                "SELECT * FROM Win32_UserAccount WHERE Name='" + accountName + "'"))
+        {
+            ManagementObjectCollection accounts = (ManagementObjectCollection)searcher.Get();
+            foreach (ManagementObject account in accounts)
+            {
+                if (account != null)
+                {
+                    if ((bool)account["Disabled"])
+                    {
+                        //Console.WriteLine("Enabling {accountName} "+account);
+                        account["Disabled"] = false;
+                        account.Put();
+                    }
+                    else
+                    {
+                        //Console.WriteLine(accountName" account is already enabled");
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 internal class JSONComparer : IComparer<object>
 {
     public int Compare(object a, object b)
     {
-        Int32 _a = (Int32)((Dict)a)["index"];
-        Int32 _b = (Int32)((Dict)b)["index"];
+        Int32 _a = (Int32)((Dictionary<string, object>)a)["index"];
+        Int32 _b = (Int32)((Dictionary<string, object>)b)["index"];
         return (_a.CompareTo(_b));
     }
 }
@@ -26,10 +99,10 @@ internal interface IAction
 {
     void Invoke();
 }
-public abstract class ActionBase : IAction
+internal abstract class ActionBase : IAction
 {
     // Assuming ExpandString is a method that expands environment variables or similar
-    protected string ExpandString(string input)
+    public static string ExpandString(string input)
     {
         return Environment.ExpandEnvironmentVariables(input);
     }
@@ -98,7 +171,7 @@ internal class FileAction : IAction
     }
 }
 
-public class RegistryAction : ActionBase
+internal class RegistryAction : ActionBase
 {
     public enum RegistryState
     {
@@ -316,14 +389,36 @@ public class ExeAction : IAction
     }
 }
 
-public class MsuAction : ExeAction
+internal class MsuAction : ActionBase
 {
+    private string packagePath;
+    private string arguments;
     public MsuAction(IDictionary<string, object> action)
-        : base(action)
     {
         var package = (string)action["path"];
         this.packagePath = "wusa.exe";
         this.arguments = package + " " + (string)action["args"];
+    }
+    public void Invoke()
+    {
+        Console.WriteLine("Installing: " + this.packagePath);
+        System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+        startInfo.FileName = this.packagePath;
+        startInfo.Arguments = this.arguments;
+        startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+        System.Diagnostics.Process.Start(startInfo).WaitForExit();
+        //aditional waiting on wusa.exe
+        this.WaitProcess(this.packagePath);
+    }
+    private void WaitProcess(string name)
+    {
+        int instanceCount;
+        do
+        {
+            System.Threading.Thread.Sleep(2000);
+            instanceCount = System.Diagnostics.Process.GetProcessesByName(name).Length;
+        }
+        while (instanceCount > 0);
     }
 }
 
@@ -428,7 +523,7 @@ class DismAction : IAction
     }
 }
 
-public class CopyAction : ActionBase
+internal class CopyAction : ActionBase
 {
     private string source;
     private string destination;
@@ -479,7 +574,7 @@ public class CopyAction : ActionBase
     }
 }
 
-public class CmdAction : ActionBase
+internal class CmdAction : ActionBase
 {
     private string command;
 
@@ -520,7 +615,7 @@ public class CmdAction : ActionBase
 
 
 
-public class PathAction : ActionBase
+internal class PathAction : ActionBase
 {
     private string pathToModify;
     private PathState state;
@@ -589,7 +684,7 @@ public class PathAction : ActionBase
 
 
 
-public class Autostart : ActionBase
+internal class Autostart : ActionBase
 {
     private string entry;
     private string interpreter;
@@ -605,13 +700,13 @@ public class Autostart : ActionBase
 
         if (!item.ContainsKey("file") || !item.ContainsKey("interpreter") || !item.ContainsKey("destination"))
         {
-            throw new ArgumentException("The item dictionary must contain 'name', 'interpreter', and 'destination' keys.");
+            throw new ArgumentException("The item dictionary must contain 'file', 'interpreter', and 'destination' keys.");
         }
 
-        this.entry = (string)item["file"];
-        this.interpreter = (string)item["interpreter"];
+        this.entry = ExpandString((string)item["file"]);
+        this.interpreter = ExpandString((string)item["interpreter"]);
         this.destination = ExpandString((string)item["destination"]);
-        this.args = item.ContainsKey("args") ? (string)item["args"] : string.Empty;
+        this.args = ExpandString(item.ContainsKey("args") ? (string)item["args"] : string.Empty);
     }
 
     public void Invoke()
@@ -665,7 +760,7 @@ internal class CustomDispatchConverter : JavaScriptConverter
         }
         else if (dictionary.ContainsKey("msu"))
         {
-            action = new ExeAction((Dictionary<string, object>)dictionary["msu"]);
+            action = new MsuAction((Dictionary<string, object>)dictionary["msu"]);
         }
         else if (dictionary.ContainsKey("cab"))
         {
@@ -713,70 +808,7 @@ internal class CustomDispatchConverter : JavaScriptConverter
 
 
 
-public class WinImageBuilderAutomation
-{
-    public static void Main()
-    {
-        var mainPs1Autostart = new Dictionary<string, object>
-        {
-            { "file", "start.ps1" },
-            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "destination", Environment.ExpandEnvironmentVariables("%CONFIGDRIVE%") }
-        };
 
-        Autostart autostartAction = new Autostart(mainPs1Autostart);
-        autostartAction.Invoke();
-        SetNetworksLocationToPrivate();
-
-    }
-    public static void SetNetworksLocationToPrivate()
-    {
-        INetworkListManager nlm = (INetworkListManager)new NetworkListManagerClass();
-        IEnumerable networks = nlm.GetNetworks(NetworkConnectivityLevels.All);
-        foreach (INetwork network in networks)
-        {
-            network.SetCategory(NetworkCategory.Private);
-        }
-    }
-    public static void EnableAdministratorAccount(string accountName)
-    {
-        using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(
-                "SELECT * FROM Win32_UserAccount WHERE Name='" + accountName + "'"))
-        {
-            ManagementObjectCollection accounts = (ManagementObjectCollection)searcher.Get();
-            foreach (ManagementObject account in accounts)
-            {
-                if (account != null)
-                {
-                    if ((bool)account["Disabled"])
-                    {
-                        //Console.WriteLine("Enabling {accountName} "+account);
-                        account["Disabled"] = false;
-                        account.Put();
-                    }
-                    else
-                    {
-                        //Console.WriteLine(accountName" account is already enabled");
-                    }
-                }
-            }
-        }
-    }
-    public static void WaitProcess(string name)
-    {
-        int instanceCount;
-        do
-        {
-            System.Threading.Thread.Sleep(2000);
-            instanceCount = System.Diagnostics.Process.GetProcessesByName(name).Length;
-        }
-        while (instanceCount > 0);
-    }
-    static void AutoStart(Dictionary<string, string> item)
-    {
-
-    }
-}
 
 internal class SingleInstance : IDisposable
 {
@@ -900,9 +932,6 @@ namespace Shell32
         Folder NameSpace([In, MarshalAs(UnmanagedType.Struct)] object vDir);
     }
 }
-
-
-
 
 
 

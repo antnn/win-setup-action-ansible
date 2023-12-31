@@ -29,7 +29,7 @@ function Import-DotNetAssembly() {
     $MainCodeFile = "C:\Users\Virt\Documents\ConsoleApplication1\Program.cs"
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
     $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions",
-            "System.Management")
+            "System.Management" )
     Add-Type -ReferencedAssemblies $scriptAssembly -TypeDefinition $sourceCode -Language CSharp
 }
 
