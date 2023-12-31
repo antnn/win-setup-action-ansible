@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
 using Dict = System.Collections.Generic.Dictionary<string, object>;
+using Microsoft.Win32;
 
 
 internal class JSONComparer : IComparer<object>
@@ -82,48 +83,150 @@ internal class FileAction : IAction
     }
 }
 
-internal class RegistryAction : IAction
+public class RegistryAction : IAction
 {
-    private IDictionary<string, object> action;
-    private string path;
-    private string value;
-
-    public enum State
+    public enum RegistryState
     {
         Present,
-        Property,
-        Absent
+        Absent,
+        Property
     }
+    private string path;
+    private object value;
+    private bool force;
+    private RegistryValueKind itemType;
+    private RegistryState state;
+    private bool? recurse;
 
-    private State state;
-
-    public RegistryAction(IDictionary<string, object> action)
+    public RegistryAction(Dictionary<string, object> item)
     {
-        this.action = action;
-        this.path = (string)action["path"];
-        this.value = (string)action["value"];
-        this.state = (State)Enum.Parse(typeof(State), (string)action["state"], true);
+        if (item == null || !item.ContainsKey("state") || string.IsNullOrEmpty(item["state"].ToString()))
+        {
+            throw new ArgumentException("The 'state' property is required.");
+        }
+
+        path = ExpandString(item["path"].ToString());
+        value = item["value"];
+        force = item.ContainsKey("force") && Convert.ToBoolean(item["force"]);
+        itemType = item.ContainsKey("type") ? ParseRegistryItemType(item["type"].ToString()) : RegistryValueKind.String;
+        state = ParseRegistryState(item["state"].ToString());
+        recurse = item.ContainsKey("recurse") ? (bool?)Convert.ToBoolean(item["recurse"]) : null;
+    }
+    private static RegistryState ParseRegistryState(string state)
+    {
+        return Enum.TryParse<RegistryState>(state, true, out var parsedState)
+            ? parsedState
+            : throw new ArgumentException($"Invalid registry state: {state}");
     }
 
-    public void Invoke()
+    private static RegistryValueKind ParseRegistryItemType(string type)
+    {
+        return Enum.TryParse<RegistryValueKind>(type, true, out var parsedType)
+            ? parsedType
+            : throw new ArgumentException($"Invalid registry item type: {type}");
+    }
+
+    public void Execute()
     {
         switch (state)
         {
-            case State.Present:
-                //Registry.SetValue(path, value);
+            case RegistryState.Present:
+                CreateOrUpdateRegistryKey();
                 break;
-
-            case State.Property:
-                //Registry.SetValue(path, value, RegistryValueKind.DWord);
+            case RegistryState.Property:
+                CreateOrUpdateRegistryValue();
                 break;
-
-            case State.Absent:
-                //Registry.SetValue(path, "");
+            case RegistryState.Absent:
+                DeleteRegistryKeyOrValue();
                 break;
+            default:
+                throw new InvalidOperationException($"Unsupported registry state: {state}");
         }
     }
-}
 
+    private void CreateOrUpdateRegistryKey()
+    {
+        using (var key = force ? RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default).CreateSubKey(path, true)
+                    : RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default).OpenSubKey(path, true))
+        {
+            if (key == null)
+            {
+                throw new InvalidOperationException($"Failed to create or open registry key: {path}");
+            }
+            // If value is provided, set it as the default value for the key
+            if (value != null)
+            {
+                key.SetValue(null, value, itemType);
+            }
+        }
+    }
+
+    private void CreateOrUpdateRegistryValue()
+    {
+        var subKeyPath = GetSubKeyPath(path);
+        var valueName = GetValueName(path);
+
+        using (var key = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default).OpenSubKey(subKeyPath, true))
+        {
+            if (key == null)
+            {
+                throw new InvalidOperationException($"Failed to open registry key: {subKeyPath}");
+            }
+            key.SetValue(valueName, value, itemType);
+        }
+    }
+
+    private void DeleteRegistryKeyOrValue()
+    {
+        var subKeyPath = GetSubKeyPath(path);
+        var valueName = GetValueName(path);
+
+        using (var key = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default).OpenSubKey(subKeyPath, true))
+        {
+            if (key == null)
+            {
+                throw new InvalidOperationException($"Failed to open registry key: {subKeyPath}");
+            }
+            if (string.IsNullOrEmpty(valueName))
+            {
+                if (recurse.HasValue && recurse.Value)
+                {
+                    key.DeleteSubKeyTree(valueName, false);
+                }
+                else
+                {
+                    key.DeleteSubKey(valueName, false);
+                }
+            }
+            else
+            {
+                key.DeleteValue(valueName, false);
+            }
+        }
+    }
+
+    private static string ExpandString(string input)
+    {
+        return Environment.ExpandEnvironmentVariables(input);
+    }
+
+    private static string GetSubKeyPath(string fullPath)
+    {
+        var lastIndex = fullPath.LastIndexOf('\\');
+        return lastIndex > 0 ? fullPath.Substring(0, lastIndex) : fullPath;
+    }
+
+    private static string GetValueName(string fullPath)
+    {
+        var lastIndex = fullPath.LastIndexOf('\\');
+        return lastIndex > 0 ? fullPath.Substring(lastIndex + 1) : string.Empty;
+    }
+
+    void IAction.Invoke()
+    {
+        Execute();
+    }
+}
 
 
 internal class UnzipAction : IAction
@@ -225,12 +328,15 @@ public class MsiAction : IAction
 
 class DismAction : IAction
 {
-    //DISM_ONLINE_IMAGE
-     private const string DismAssembly = "DismApi.dll";
+    private const string DismAssembly = "DismApi.dll";
+    private const string DISM_ONLINE_IMAGE = "DISM_{53BFAE52-B167-4E2F-A258-0A37B57FF845}";// Placeholder value, you need to use the actual constant from the DISM API
+    private string packagePath;
+    private bool ignoreCheck;
+    private bool preventPending;
 
     [DllImport(DismAssembly, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Error)]
-    public static extern int DismOpenSession(out IntPtr session);
+    public static extern int DismOpenSession(string imagePath, string windowsDirectory, string systemDrive, out IntPtr session);
 
     [DllImport(DismAssembly, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Error)]
@@ -240,10 +346,213 @@ class DismAction : IAction
     [return: MarshalAs(UnmanagedType.Error)]
     public static extern int DismCloseSession(IntPtr session);
 
-    public DismAction() {}
+    public DismAction(IDictionary<string, object> action)
+    {
+        if (action.ContainsKey("path"))
+        {
+            this.packagePath = (string)action["path"];
+        }
+        else
+        {
+            throw new ArgumentException("The action dictionary must contain a 'path' key.");
+        }
+        this.ignoreCheck = action.TryGetValue("ignoreCheck", out object ignoreCheckObj) && ignoreCheckObj is bool
+            ? (bool)ignoreCheckObj
+            : false;
+
+        // Get 'preventPending' from the dictionary or default to false if not provided
+        this.preventPending = action.TryGetValue("preventPending", out object preventPendingObj) && preventPendingObj is bool
+            ? (bool)preventPendingObj
+            : false;
+    }
+
     public void Invoke()
     {
-        throw new NotImplementedException();
+        IntPtr session;
+        int result = DismOpenSession(DISM_ONLINE_IMAGE, null, null, out session);
+        if (result != 0)
+        {
+            throw new Exception("Failed to open DISM session for the online image.");
+        }
+
+        try
+        {
+            result = DismAddPackage(session, packagePath, false, false, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            if (result != 0)
+            {
+                throw new Exception("Failed to add package to the online image.");
+            }
+        }
+        finally
+        {
+            result = DismCloseSession(session);
+            if (result != 0)
+            {
+                throw new Exception("Failed to close DISM session for the online image.");
+            }
+        }
+    }
+}
+
+public class CopyAction : IAction
+{
+    private string source;
+    private string destination;
+    private bool force;
+
+    public CopyAction(IDictionary<string, object> action)
+    {
+        if (action == null)
+        {
+            throw new ArgumentNullException(nameof(action));
+        }
+
+        if (!action.ContainsKey("src") || !action.ContainsKey("dest"))
+        {
+            throw new ArgumentException("The action dictionary must contain 'src' and 'dest' keys.");
+        }
+
+        // Assuming _ExpandString is a method that expands environment variables or similar
+        this.source = ExpandString((string)action["src"]);
+        this.destination = ExpandString((string)action["dest"]);
+
+        // 'force' parameter is optional; default to false if not provided
+        this.force = action.TryGetValue("force", out object forceObj) && forceObj is bool && (bool)forceObj;
+    }
+
+    public void Invoke()
+    {
+        if (string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("Source and destination are the same. No action taken.");
+            return;
+        }
+
+        Console.WriteLine("Copying: " + source + " to " + destination);
+        try
+        {
+            // Use the 'force' parameter to decide whether to overwrite existing files
+            File.Copy(source, destination, force);
+        }
+        catch (Exception ex)
+        {
+            // Handle any exceptions that may occur during the copy
+            Console.WriteLine("An error occurred while copying the file: " + ex.Message);
+        }
+    }
+    private static string ExpandString(string input)
+    {
+        return Environment.ExpandEnvironmentVariables(input);
+    }
+}
+
+public class CmdAction : IAction
+{
+    private string command;
+
+    public CmdAction(IDictionary<string, object> action)
+    {
+        if (action == null)
+        {
+            throw new ArgumentNullException(nameof(action));
+        }
+
+        if (!action.ContainsKey("cmd"))
+        {
+            throw new ArgumentException("The action dictionary must contain a 'cmd' key.");
+        }
+
+        this.command = ExpandString((string)action["cmd"]);
+    }
+
+    public void Invoke()
+    {
+        Console.WriteLine("Running command: " + command);
+        try
+        {
+            System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C " + command;
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            System.Diagnostics.Process process = System.Diagnostics.Process.Start(startInfo);
+            process.WaitForExit();
+        }
+        catch (Exception ex)
+        {
+            // Handle any exceptions that may occur during the command execution
+            Console.WriteLine("An error occurred while running the command: " + ex.Message);
+        }
+    }
+
+    private static string ExpandString(string input)
+    {
+        return Environment.ExpandEnvironmentVariables(input);
+    }
+}
+
+public class PathAction : IAction
+{
+    private string pathToModify;
+    private PathState state;
+
+    // Define an enum for the state
+    public enum PathState
+    {
+        Present,
+        Absent
+    }
+
+    public PathAction(IDictionary<string, object> action)
+    {
+        if (action == null || !action.ContainsKey("path"))
+        {
+            throw new ArgumentException("The action dictionary must contain a 'path' key.");
+        }
+
+        this.pathToModify = ExpandString((string)action["path"]);
+        // Set "Present" as the default state if "state" key is not provided
+        if (action.ContainsKey("state"))
+        {
+            state = Enum.TryParse<PathState>((string)action["state"], true, out var result) ? result : PathState.Present;
+        }
+        else
+        {
+            state = PathState.Present;
+        }
+    }
+
+    public void Invoke()
+    {
+        string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine);
+        string[] paths = currentPath.Split(';');
+        var pathList = new List<string>(paths);
+
+        switch (state)
+        {
+            case PathState.Present:
+                if (!pathList.Contains(pathToModify))
+                {
+                    pathList.Add(pathToModify);
+                    string newPath = string.Join(";", pathList);
+                    Environment.SetEnvironmentVariable("PATH", newPath, EnvironmentVariableTarget.Machine);
+                }
+                break;
+            case PathState.Absent:
+                if (pathList.Contains(pathToModify))
+                {
+                    pathList.Remove(pathToModify);
+                    string newPath = string.Join(";", pathList);
+                    Environment.SetEnvironmentVariable("PATH", newPath, EnvironmentVariableTarget.Machine);
+                }
+                break;
+            default:
+                throw new ArgumentException("Invalid state value. Only 'Present' or 'Absent' are supported.");
+        }
+    }
+
+    private static string ExpandString(string input)
+    {
+        return Environment.ExpandEnvironmentVariables(input);
     }
 }
 
@@ -275,23 +584,23 @@ internal class CustomDispatchConverter : JavaScriptConverter
         }
         else if (dictionary.ContainsKey("cab"))
         {
-            // handle cab 
+            action = new DismAction((Dictionary<string, object>)dictionary["cab"]);
         }
         else if (dictionary.ContainsKey("copy"))
         {
-            // handle copy
+            action = new CopyAction((Dictionary<string, object>)dictionary["copy"]);
         }
         else if (dictionary.ContainsKey("cmd"))
         {
-            // handle cmd
+            action = new DismAction((Dictionary<string, object>)dictionary["cmd"]);
         }
         else if (dictionary.ContainsKey("registry"))
         {
-            // handle registry
+            action = new DismAction((Dictionary<string, object>)dictionary["registry"]);
         }
         else if (dictionary.ContainsKey("path"))
         {
-            // handle path
+            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
         }
         else
         {
@@ -305,12 +614,13 @@ internal class CustomDispatchConverter : JavaScriptConverter
         Dictionary<string, object> dict = new Dictionary<string, object>();
         return dict;
     }
-
     public override IEnumerable<Type> SupportedTypes
     {
         get { return new[] { typeof(Dictionary<string, object>) }; }
     }
 }
+
+
 
 
 
