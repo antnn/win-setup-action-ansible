@@ -39,16 +39,15 @@ public class WinImageBuilderAutomation
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
 
-        //check for duplicate indexes
+        CheckDuplicateIndexes(actions);
+
         using (ActionTracker indexTracker = new ActionTracker("c:\\installed.log"))
         {
             foreach (IAction action in actions)
             {
                 if (indexTracker.IsDone(action.Index))
                 {
-                    throw new InvalidOperationException("Duplicate index found: "
-                     + action.Index.ToString() + " for actions '" + action.ToString()
-                     + "' and '" + action.ToString() + "'.");
+                    continue;
                 }
                 else
                 {
@@ -64,6 +63,20 @@ public class WinImageBuilderAutomation
                 }
             }
             indexTracker.Save();
+        }
+    }
+    private static void CheckDuplicateIndexes(List<ActionBase> actions)
+    {
+        var indexes = new HashSet<int>();
+
+        foreach (var action in actions)
+        {
+            if (indexes.Contains(action.Index))
+            {
+                throw new InvalidOperationException("Duplicate index found");
+            }
+
+            indexes.Add(action.Index);
         }
     }
 
@@ -718,12 +731,17 @@ internal class MsuAction : ActionBase
     public override void Invoke()
     // TODO think about wusa errors, because it dettaches
     {
-        if (!File.Exists(package)) { throw new ArgumentException("Msu file does not exists"); }
+        if (!File.Exists(package))
+        {
+            throw new ArgumentException("Msu file does not exists");
+        }
         Console.WriteLine("Installing: " + arguments);
-        ProcessStartInfo startInfo = new ProcessStartInfo();
-        startInfo.FileName = wusa;
-        startInfo.Arguments = arguments;
-        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        ProcessStartInfo startInfo = new ProcessStartInfo
+        {
+            FileName = wusa,
+            Arguments = arguments,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
         Process.Start(startInfo).WaitForExit();
         //aditional waiting on wusa.exe
         WaitProcess(wusa);
@@ -881,7 +899,7 @@ internal class CopyAction : ActionBase
 
         force = false;
         object forceValue;
-        if (action.TryGetValue("ignoreCheck", out forceValue))
+        if (action.TryGetValue("force", out forceValue))
         {
             force = (bool)forceValue;
         }
@@ -931,10 +949,12 @@ internal class CmdAction : ActionBase
         Console.WriteLine("Running command: " + command);
         try
         {
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = "cmd.exe";
-            startInfo.Arguments = "/C " + command;
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/C " + command,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
             Process process = Process.Start(startInfo);
             process.WaitForExit();
         }
