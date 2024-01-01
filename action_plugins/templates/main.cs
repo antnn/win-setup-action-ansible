@@ -43,7 +43,9 @@ public class WinImageBuilderAutomation
         {
             if (indexTracker.TryGetValue(action.Index, out existingAction))
             {
-                throw new InvalidOperationException("Duplicate index found: " + action.Index.ToString() + " for actions '" + existingAction.ToString() + "' and '" + action.ToString() + "'.");
+                throw new InvalidOperationException("Duplicate index found: "
+                 + action.Index.ToString() + " for actions '" + existingAction.ToString()
+                 + "' and '" + action.ToString() + "'.");
             }
             else
             {
@@ -55,6 +57,7 @@ public class WinImageBuilderAutomation
 
 
     }
+    
     public static void SetNetworksLocationToPrivate()
     {
         INetworkListManager nlm = (INetworkListManager)new NetworkListManagerClass();
@@ -89,6 +92,125 @@ public class WinImageBuilderAutomation
         }
     }
 }
+
+
+
+
+internal class Tester
+{
+    public static string Test()
+    {
+        var fileAction = new Dictionary<string, object>
+        {
+            { "path", "file/path" },
+            { "content", "file content" },
+            { "state", "Active" }
+        };
+
+        var registryAction = new Dictionary<string, object>
+        {
+            { "path", "registry/path" },
+            { "value", "registry value" },
+            { "state", "Active" },
+            { "force", true },
+            { "type", "String" },
+            { "recurse", true }
+        };
+
+        var unzipAction = new Dictionary<string, object>
+        {
+            { "path", "zip/file/path" },
+            { "dest", "destination/path" }
+        };
+
+        var exeAction = new Dictionary<string, object>
+        {
+            { "path", "exe/file/path" },
+            { "args", "arguments" }
+        };
+
+        var msuAction = new Dictionary<string, object>
+        {
+            { "path", "msu/file/path" },
+            { "args", "msu arguments" }
+        };
+
+        var msiAction = new Dictionary<string, object>
+        {
+            { "path", "msi/file/path" },
+            { "args", "msi arguments" }
+        };
+
+        var dismAction = new Dictionary<string, object>
+        {
+            { "path", "dism/file/path" },
+            { "ignoreCheck", true },
+            { "preventPending", false }
+        };
+
+        var copyAction = new Dictionary<string, object>
+        {
+            { "src", "source/file/path" },
+            { "dest", "destination/file/path" },
+            { "force", true }
+        };
+
+        var pathAction = new Dictionary<string, object>
+        {
+            { "path", "path/to/modify" },
+            { "state", "Present" }
+        };
+
+        var autostartAction = new Dictionary<string, object>
+        {
+            { "file", "start.ps1" },
+            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
+            { "destination", "config/drive/path" },
+            { "args", "" }
+        };
+
+        var json = new Dictionary<string, object>
+        {
+            { "registry", registryAction },
+            { "file", fileAction },
+            { "zip", unzipAction },
+            { "msi", msiAction },
+            { "exe", exeAction },
+            { "msu", msuAction },
+            { "cab", new Dictionary<string, object>
+                {
+                    { "source", "C:\\example\\driver.cab" },
+                    { "destination", "C:\\example\\driver" }
+                }
+            },
+            { "copy", copyAction },
+            { "cmd", new Dictionary<string, object>
+                {
+                    { "command", "echo Hello, World!" }
+                }
+            },
+            { "path", pathAction },
+            { "autostart", new Dictionary<string, object>
+                {
+                    { "name", "ExampleApp" },
+                    { "path", "C:\\example\\app.exe" }
+                }
+            },
+            { "unknown", new Dictionary<string, object>
+                {
+                    { "data", "This should trigger an exception" }
+                }
+            }
+        };
+
+        var serializer = new JavaScriptSerializer();
+        var jsonString = serializer.Serialize(json);
+        return jsonString;
+    }
+}
+
+
+
 
 internal class ActionComparer : IComparer<ActionBase>
 {
@@ -233,6 +355,7 @@ internal class FileAction : ActionBase
         try
         {
             path = (string)action["path"];
+            value = (string)action["content"];
             state = (State)Enum.Parse(typeof(State), (string)action["state"], true);
         }
         catch (Exception ex)
