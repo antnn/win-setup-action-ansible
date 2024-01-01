@@ -8,7 +8,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
 using Microsoft.Win32;
-using System.Linq;
 
 
 
@@ -104,16 +103,24 @@ public class WinImageBuilderAutomation
 public class ActionTracker
 {
     private string path;
+    private StreamWriter writer;
     private IDictionary<int, string> indexTracker;
-    private JavaScriptSerializer serializer;
     public ActionTracker(string path)
     {
         if (!File.Exists(path))
         {
             File.Create(path);
         }
-        serializer = new JavaScriptSerializer();
-        indexTracker = serializer.Deserialize<Dictionary<int, string>>(File.ReadAllText(path));
+        indexTracker = new Dictionary<int, string> ();
+        using (StreamReader reader = new StreamReader(path))
+        {
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                indexTracker.Add(int.Parse(line), "");
+            }
+        }
+        writer = File.AppendText(path);
     }
     public bool IsDone(int index)
     {
@@ -123,7 +130,7 @@ public class ActionTracker
     public void Append(int index)
     {
         indexTracker.Add(index, "");
-        File.AppendAllText(path, "\"" + index + "\"" + "\"\"" + Environment.NewLine);
+        writer.WriteLine(index);
     }
 }
 
