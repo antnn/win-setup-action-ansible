@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
 using Microsoft.Win32;
+using System.Linq;
+
 
 
 public class WinImageBuilderAutomation
@@ -37,27 +39,31 @@ public class WinImageBuilderAutomation
         var actions = serializer.Deserialize<List<ActionBase>>(packageJsonContent);
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
-        IDictionary<int, IAction> indexTracker = new Dictionary<int, IAction>(); //chech for duplicate indexes
-        IAction existingAction;
+
+        var indexTracker = new ActionTracker("c:\\installed.log"); //chech for duplicate indexes
         foreach (IAction action in actions)
         {
-            if (indexTracker.TryGetValue(action.Index, out existingAction))
+            if (indexTracker.IsDone(action.Index))
             {
                 throw new InvalidOperationException("Duplicate index found: "
-                 + action.Index.ToString() + " for actions '" + existingAction.ToString()
+                 + action.Index.ToString() + " for actions '" + action.ToString()
                  + "' and '" + action.ToString() + "'.");
             }
             else
             {
-                indexTracker.Add(action.Index, action);
                 action.Invoke();
+                indexTracker.Append(action.Index);
+                if (action.Restart)
+                {
+                    Process.Start("shutdown", "/r /t 0");
+                    Environment.Exit(0);
+                }
+
             }
         }
 
-
-
     }
-    
+
     public static void SetNetworksLocationToPrivate()
     {
         INetworkListManager nlm = (INetworkListManager)new NetworkListManagerClass();
@@ -93,6 +99,33 @@ public class WinImageBuilderAutomation
     }
 }
 
+
+
+public class ActionTracker
+{
+    private string path;
+    private IDictionary<int, string> indexTracker;
+    private JavaScriptSerializer serializer;
+    public ActionTracker(string path)
+    {
+        if (!File.Exists(path))
+        {
+            File.Create(path);
+        }
+        serializer = new JavaScriptSerializer();
+        indexTracker = serializer.Deserialize<Dictionary<int, string>>(File.ReadAllText(path));
+    }
+    public bool IsDone(int index)
+    {
+        return indexTracker.ContainsKey(index);
+    }
+
+    public void Append(int index)
+    {
+        indexTracker.Add(index, "");
+        File.AppendAllText(path, "\"" + index + "\"" + "\"\"" + Environment.NewLine);
+    }
+}
 
 
 
@@ -228,22 +261,25 @@ internal class CustomDispatchConverter : JavaScriptConverter
 {
     public override object Deserialize(IDictionary<string, object> dictionary, Type type, JavaScriptSerializer serializer)
     {
-
         object indexValue;
-
         if (!dictionary.TryGetValue("index", out indexValue))
         {
             throw new ArgumentException("The 'index' field is missing.");
         }
-
         if (!(indexValue is int))
         {
-            throw new ArgumentException("The 'index' field is invalid.");
+            throw new ArgumentException("The 'index' field is invalid: " + indexValue.ToString());
+        }
+        IAction action = CreateActionFromDictionary(dictionary);
+        action.Index = (int)indexValue;
+
+        action.Restart = false;
+        object restartValue;
+        if (dictionary.TryGetValue("restart", out restartValue))
+        {
+            action.Restart = (bool)restartValue;
         }
 
-        IAction action = CreateActionFromDictionary(dictionary);
-
-        action.Index = (int)indexValue;
         return action;
     }
     private IAction CreateActionFromDictionary(IDictionary<string, object> dictionary)
@@ -316,12 +352,15 @@ internal class CustomDispatchConverter : JavaScriptConverter
 internal interface IAction
 {
     int Index { get; set; }
+    bool Restart { get; set; }
+
     void Invoke();
 }
 internal abstract class ActionBase : IAction
 {
     public ActionBase() { }
     public int Index { get; set; }
+    public bool Restart { get; set; }
 
     // Assuming ExpandString is a method that expands environment variables or similar
     public static string ExpandString(string input)

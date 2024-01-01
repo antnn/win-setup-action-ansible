@@ -352,6 +352,10 @@ function IsDone($item) {
     return [bool] ($_doneList -match $item.index)
 }
 
+
+function AppendToDoneList($item) {
+    $item.index | Out-File -Append $DoneList
+}
 # Skip already installed packages
 Write-Output $null >> $DoneList
 $_doneList = Get-Content $DoneList
