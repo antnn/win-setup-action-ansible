@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
 using Microsoft.Win32;
+using System.Diagnostics.Eventing.Reader;
 
 
 
@@ -888,13 +889,13 @@ internal class CopyAction : ActionBase
             }
             else
             {
-                content = ExpandString((string)action["content"]);
+                content = (string)action["content"];
             }
             destination = ExpandString((string)action["dest"]);
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("CopyAction: Invalid argument or missing key", ex);
         }
 
         force = false;
@@ -909,20 +910,59 @@ internal class CopyAction : ActionBase
     {
         if (string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine("Source and destination are the same. No action taken.");
-            return;
+            return; // do nothing
         }
-
-        Console.WriteLine("Copying: " + source + " to " + destination);
         try
         {
-            // Use the 'force' parameter to decide whether to overwrite existing files
-            File.Copy(source, destination, force);
+            if (Directory.Exists(source))
+            {
+                DirectoryInfo diSource = new DirectoryInfo(source);
+                DirectoryInfo diTarget = new DirectoryInfo(destination);
+                CopyAll(diSource, diTarget);
+            }
+            else if (File.Exists(source))
+            {
+                if (content.Equals(String.Empty))
+                {
+
+                    File.Copy(source, destination, force);
+                }
+                else
+                {
+                    File.WriteAllText(content, destination);
+                }
+            }
+            else
+            {
+                throw new ArgumentException("Source path does not exists");
+            }
         }
         catch (Exception ex)
         {
-            // Handle any exceptions that may occur during the copy
-            Console.WriteLine("An error occurred while copying the file: " + ex.Message);
+            throw new InvalidOperationException("CopyAction: Exception occurred", ex);
+        }
+    }
+    private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
+    {
+        if (source.FullName.ToLower() == target.FullName.ToLower())
+        {
+            return;
+        }
+        if (Directory.Exists(target.FullName) == false)
+        {
+            Directory.CreateDirectory(target.FullName);
+        }
+
+        foreach (FileInfo fi in source.GetFiles())
+        {
+            fi.CopyTo(Path.Combine(target.ToString(), fi.Name), true);
+        }
+
+        foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+        {
+            DirectoryInfo nextTargetSubDir =
+                target.CreateSubdirectory(diSourceSubDir.Name);
+            CopyAll(diSourceSubDir, nextTargetSubDir);
         }
     }
 }
