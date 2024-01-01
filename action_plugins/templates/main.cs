@@ -22,7 +22,7 @@ public class WinImageBuilderAutomation
             { "destination", configDrivePath }
         };
 
-        Autostart autostartAction = new Autostart(mainPs1Autostart);
+        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
         autostartAction.Invoke();
 
         string packageJsonPath = Path.Combine(configDrivePath, "package.json");
@@ -101,68 +101,77 @@ internal class CustomDispatchConverter : JavaScriptConverter
 {
     public override object Deserialize(IDictionary<string, object> dictionary, Type type, JavaScriptSerializer serializer)
     {
-        IAction action = null;
 
         object indexValue;
+        object actionData;
+
         if (!dictionary.TryGetValue("index", out indexValue))
+        {
             throw new ArgumentException("The 'index' field is missing.");
+        }
 
         if (!(indexValue is int))
+        {
             throw new ArgumentException("The 'index' field is invalid.");
+        }
 
-        int index = (int)indexValue;
+        IAction action = CreateActionFromDictionary(dictionary);
 
-        if (dictionary.ContainsKey("file"))
-        {
-            action = new FileAction((Dictionary<string, object>)dictionary["file"]);
-        }
-        else if (dictionary.ContainsKey("zip"))
-        {
-            action = new UnzipAction((Dictionary<string, object>)dictionary["zip"]);
-        }
-        else if (dictionary.ContainsKey("msi"))
-        {
-            action = new MsiAction((Dictionary<string, object>)dictionary["msi"]);
-        }
-        else if (dictionary.ContainsKey("exe"))
-        {
-            action = new ExeAction((Dictionary<string, object>)dictionary["exe"]);
-        }
-        else if (dictionary.ContainsKey("msu"))
-        {
-            action = new MsuAction((Dictionary<string, object>)dictionary["msu"]);
-        }
-        else if (dictionary.ContainsKey("cab"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["cab"]);
-        }
-        else if (dictionary.ContainsKey("copy"))
-        {
-            action = new CopyAction((Dictionary<string, object>)dictionary["copy"]);
-        }
-        else if (dictionary.ContainsKey("cmd"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["cmd"]);
-        }
-        else if (dictionary.ContainsKey("registry"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["registry"]);
-        }
-        else if (dictionary.ContainsKey("path"))
-        {
-            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
-        }
-        else if (dictionary.ContainsKey("autostart"))
-        {
-            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
-        }
-        else
-        {
-            throw new Exception("Unknown ansible action type");
-        }
-        action.Index = indexValue;
+        action.Index = (int)indexValue;
         return action;
     }
+    private IAction CreateActionFromDictionary(IDictionary<string, object> dictionary)
+    {
+        object actionData;
+
+        if (dictionary.TryGetValue("file", out actionData))
+        {
+            return new FileAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("zip", out actionData))
+        {
+            return new UnzipAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("msi", out actionData))
+        {
+            return new MsiAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("exe", out actionData))
+        {
+            return new ExeAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("msu", out actionData))
+        {
+            return new MsuAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("cab", out actionData))
+        {
+            return new DismAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("copy", out actionData))
+        {
+            return new CopyAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("cmd", out actionData))
+        {
+            return new CmdAction((Dictionary<string, object>)actionData); // Assuming CmdAction exists
+        }
+        if (dictionary.TryGetValue("registry", out actionData))
+        {
+            return new RegistryAction((Dictionary<string, object>)actionData); // Assuming RegistryAction exists
+        }
+        if (dictionary.TryGetValue("path", out actionData))
+        {
+            return new PathAction((Dictionary<string, object>)actionData);
+        }
+        if (dictionary.TryGetValue("autostart", out actionData))
+        {
+            return new AutostartAction((Dictionary<string, object>)actionData); // Assuming AutostartAction exists and is different from PathAction
+        }
+
+        throw new Exception("Unknown action type");
+    }
+
 
     public override IDictionary<string, object> Serialize(object obj, JavaScriptSerializer serializer)
     {
@@ -776,14 +785,14 @@ internal class PathAction : ActionBase
 
 
 
-internal class Autostart : ActionBase
+internal class AutostartAction : ActionBase
 {
     private string entry;
     private string interpreter;
     private string args;
     private string destination;
 
-    public Autostart(IDictionary<string, object> item)
+    public AutostartAction(IDictionary<string, object> item)
     {
         if (item == null)
         {
