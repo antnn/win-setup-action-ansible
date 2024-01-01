@@ -14,17 +14,17 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
+        var configDrivePath = "D:";//"{{config_drive}}";
         var mainPs1Autostart = new Dictionary<string, object>
         {
             { "file", "start.ps1" },
             { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "destination", "%CONFIGDRIVE%" }
+            { "destination", configDrivePath }
         };
 
         Autostart autostartAction = new Autostart(mainPs1Autostart);
         autostartAction.Invoke();
 
-        string configDrivePath = ActionBase.ExpandString("%CONFIGDRIVE%");
         string packageJsonPath = Path.Combine(configDrivePath, "package.json");
 
         try
@@ -37,7 +37,8 @@ public class WinImageBuilderAutomation
 
             var actions = serializer.Deserialize<List<IAction>>(packageJsonContent);
 
-            // Invoke each action
+            actions.Sort(new ActionComparer());
+
             foreach (var action in actions)
             {
                 action.Invoke();
@@ -84,37 +85,120 @@ public class WinImageBuilderAutomation
     }
 }
 
-
-internal class JSONComparer : IComparer<object>
+internal class ActionComparer : IComparer<IAction>
 {
-    public int Compare(object a, object b)
+    public int Compare(IAction a, IAction b)
     {
-        Int32 _a = (Int32)((Dictionary<string, object>)a)["index"];
-        Int32 _b = (Int32)((Dictionary<string, object>)b)["index"];
-        return (_a.CompareTo(_b));
+        int indexA = a.Index;
+        int indexB = b.Index;
+        return indexA.CompareTo(indexB);
     }
 }
 
+
+
+internal class CustomDispatchConverter : JavaScriptConverter
+{
+    public override object Deserialize(IDictionary<string, object> dictionary, Type type, JavaScriptSerializer serializer)
+    {
+        IAction action = null;
+
+        object indexValue;
+        if (!dictionary.TryGetValue("index", out indexValue))
+            throw new ArgumentException("The 'index' field is missing.");
+
+        if (!(indexValue is int))
+            throw new ArgumentException("The 'index' field is invalid.");
+
+        int index = (int)indexValue;
+
+        if (dictionary.ContainsKey("file"))
+        {
+            action = new FileAction((Dictionary<string, object>)dictionary["file"]);
+        }
+        else if (dictionary.ContainsKey("zip"))
+        {
+            action = new UnzipAction((Dictionary<string, object>)dictionary["zip"]);
+        }
+        else if (dictionary.ContainsKey("msi"))
+        {
+            action = new MsiAction((Dictionary<string, object>)dictionary["msi"]);
+        }
+        else if (dictionary.ContainsKey("exe"))
+        {
+            action = new ExeAction((Dictionary<string, object>)dictionary["exe"]);
+        }
+        else if (dictionary.ContainsKey("msu"))
+        {
+            action = new MsuAction((Dictionary<string, object>)dictionary["msu"]);
+        }
+        else if (dictionary.ContainsKey("cab"))
+        {
+            action = new DismAction((Dictionary<string, object>)dictionary["cab"]);
+        }
+        else if (dictionary.ContainsKey("copy"))
+        {
+            action = new CopyAction((Dictionary<string, object>)dictionary["copy"]);
+        }
+        else if (dictionary.ContainsKey("cmd"))
+        {
+            action = new DismAction((Dictionary<string, object>)dictionary["cmd"]);
+        }
+        else if (dictionary.ContainsKey("registry"))
+        {
+            action = new DismAction((Dictionary<string, object>)dictionary["registry"]);
+        }
+        else if (dictionary.ContainsKey("path"))
+        {
+            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
+        }
+        else if (dictionary.ContainsKey("autostart"))
+        {
+            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
+        }
+        else
+        {
+            throw new Exception("Unknown ansible action type");
+        }
+        action.Index = indexValue;
+        return action;
+    }
+
+    public override IDictionary<string, object> Serialize(object obj, JavaScriptSerializer serializer)
+    {
+        Dictionary<string, object> dict = new Dictionary<string, object>();
+        return dict;
+    }
+    public override IEnumerable<Type> SupportedTypes
+    {
+        get { return new[] { typeof(Dictionary<string, object>) }; }
+    }
+}
+
+
+
+
 internal interface IAction
 {
+    int Index { get; set; }
     void Invoke();
 }
 internal abstract class ActionBase : IAction
 {
+    public int Index { get; set; }
+
     // Assuming ExpandString is a method that expands environment variables or similar
     public static string ExpandString(string input)
     {
         return Environment.ExpandEnvironmentVariables(input);
     }
 
-    public void Invoke()
-    {
-        throw new NotImplementedException();
-    }
+    public abstract void Invoke();
+
 }
 
 
-internal class FileAction : IAction
+internal class FileAction : ActionBase
 {
     private IDictionary<string, object> action;
     private string path;
@@ -128,6 +212,8 @@ internal class FileAction : IAction
         Absent
     }
     private State state;
+
+
     public FileAction(IDictionary<string, object> action)
     {
         this.action = action;
@@ -137,7 +223,7 @@ internal class FileAction : IAction
         this.value = (string)action["value"];
 
     }
-    void IAction.Invoke()
+    public override void Invoke()
     {
         switch (state)
         {
@@ -185,6 +271,7 @@ internal class RegistryAction : ActionBase
     private RegistryValueKind itemType;
     private RegistryState state;
     private bool? recurse;
+
 
     public RegistryAction(Dictionary<string, object> item)
     {
@@ -324,14 +411,14 @@ internal class RegistryAction : ActionBase
         return lastIndex > 0 ? fullPath.Substring(lastIndex + 1) : string.Empty;
     }
 
-    new public void Invoke()
+    public override void Invoke()
     {
         Execute();
     }
 }
 
 
-internal class UnzipAction : IAction
+internal class UnzipAction : ActionBase
 {
     private string zipPath;
     private string extractPath;
@@ -342,7 +429,8 @@ internal class UnzipAction : IAction
         this.extractPath = (string)action["destination"];
     }
 
-    public void Invoke()
+
+    public override void Invoke()
     {
         // Validate paths exist before creating Folders
         if (!File.Exists(zipPath))
@@ -367,7 +455,7 @@ internal class UnzipAction : IAction
     }
 }
 
-public class ExeAction : IAction
+internal class ExeAction : ActionBase
 {
     protected string packagePath;
     protected string arguments;
@@ -378,7 +466,8 @@ public class ExeAction : IAction
         this.arguments = (string)action["args"];
     }
 
-    public void Invoke()
+
+    public override void Invoke()
     {
         Console.WriteLine("Installing: " + this.packagePath);
         System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
@@ -399,7 +488,8 @@ internal class MsuAction : ActionBase
         this.packagePath = "wusa.exe";
         this.arguments = package + " " + (string)action["args"];
     }
-    public void Invoke()
+
+    public override void Invoke()
     {
         Console.WriteLine("Installing: " + this.packagePath);
         System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
@@ -422,7 +512,7 @@ internal class MsuAction : ActionBase
     }
 }
 
-public class MsiAction : IAction
+internal class MsiAction : ActionBase
 {
     [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = true)]
     static extern UInt32 MsiInstallProduct([MarshalAs(UnmanagedType.LPTStr)] string packagePath,
@@ -437,7 +527,7 @@ public class MsiAction : IAction
         this.arguments = (string)action["args"];
     }
 
-    public void Invoke()
+    public override void Invoke()
     {
         Console.WriteLine("Installing: " + this.packagePath);
 
@@ -450,13 +540,14 @@ public class MsiAction : IAction
         }
     }
 }
-class DismAction : IAction
+class DismAction : ActionBase
 {
     private const string DismAssembly = "DismApi.dll";
     private const string DISM_ONLINE_IMAGE = "DISM_{53BFAE52-B167-4E2F-A258-0A37B57FF845}"; // Placeholder value, you need to use the actual constant from the DISM API
     private string packagePath;
     private bool ignoreCheck;
     private bool preventPending;
+
 
     [DllImport(DismAssembly, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Error)]
@@ -495,7 +586,7 @@ class DismAction : IAction
         }
     }
 
-    public void Invoke()
+    public override void Invoke()
     {
         IntPtr session;
         int result = DismOpenSession(DISM_ONLINE_IMAGE, null, null, out session);
@@ -552,7 +643,7 @@ internal class CopyAction : ActionBase
         }
     }
 
-    public void Invoke()
+    public override void Invoke()
     {
         if (string.Equals(source, destination, StringComparison.OrdinalIgnoreCase))
         {
@@ -593,7 +684,8 @@ internal class CmdAction : ActionBase
         this.command = ExpandString((string)action["cmd"]);
     }
 
-    public void Invoke()
+
+    public override void Invoke()
     {
         Console.WriteLine("Running command: " + command);
         try
@@ -652,7 +744,7 @@ internal class PathAction : ActionBase
         }
     }
 
-    public void Invoke()
+    public override void Invoke()
     {
         string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine);
         string[] paths = currentPath.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
@@ -709,7 +801,7 @@ internal class Autostart : ActionBase
         this.args = ExpandString(item.ContainsKey("args") ? (string)item["args"] : string.Empty);
     }
 
-    public void Invoke()
+    public override void Invoke()
     {
         string value = string.Format("cmd /C \"{0}\" \"{1}\\{2}\" {3}", interpreter, destination, entry, args);
 
@@ -737,72 +829,6 @@ internal class Autostart : ActionBase
 
 
 
-internal class CustomDispatchConverter : JavaScriptConverter
-{
-    public override object Deserialize(IDictionary<string, object> dictionary, Type type, JavaScriptSerializer serializer)
-    {
-        IAction action = null;
-        if (dictionary.ContainsKey("file"))
-        {
-            action = new FileAction((Dictionary<string, object>)dictionary["file"]);
-        }
-        else if (dictionary.ContainsKey("zip"))
-        {
-            action = new UnzipAction((Dictionary<string, object>)dictionary["zip"]);
-        }
-        else if (dictionary.ContainsKey("msi"))
-        {
-            action = new MsiAction((Dictionary<string, object>)dictionary["msi"]);
-        }
-        else if (dictionary.ContainsKey("exe"))
-        {
-            action = new ExeAction((Dictionary<string, object>)dictionary["exe"]);
-        }
-        else if (dictionary.ContainsKey("msu"))
-        {
-            action = new MsuAction((Dictionary<string, object>)dictionary["msu"]);
-        }
-        else if (dictionary.ContainsKey("cab"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["cab"]);
-        }
-        else if (dictionary.ContainsKey("copy"))
-        {
-            action = new CopyAction((Dictionary<string, object>)dictionary["copy"]);
-        }
-        else if (dictionary.ContainsKey("cmd"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["cmd"]);
-        }
-        else if (dictionary.ContainsKey("registry"))
-        {
-            action = new DismAction((Dictionary<string, object>)dictionary["registry"]);
-        }
-        else if (dictionary.ContainsKey("path"))
-        {
-            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
-        }
-        else if (dictionary.ContainsKey("autostart"))
-        {
-            action = new PathAction((Dictionary<string, object>)dictionary["path"]);
-        }
-        else
-        {
-            throw new Exception("Unknown ansible action type");
-        }
-        return action;
-    }
-
-    public override IDictionary<string, object> Serialize(object obj, JavaScriptSerializer serializer)
-    {
-        Dictionary<string, object> dict = new Dictionary<string, object>();
-        return dict;
-    }
-    public override IEnumerable<Type> SupportedTypes
-    {
-        get { return new[] { typeof(Dictionary<string, object>) }; }
-    }
-}
 
 
 
