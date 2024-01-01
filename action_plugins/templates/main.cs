@@ -14,7 +14,7 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        var configDrivePath = "D:";//"{{config_drive}}";
+        var configDrivePath = "C:\\";//"{{config_drive}}";
         var mainPs1Autostart = new Dictionary<string, object>
         {
             { "file", "start.ps1" },
@@ -27,37 +27,31 @@ public class WinImageBuilderAutomation
 
         string packageJsonPath = Path.Combine(configDrivePath, "package.json");
 
-        try
+        string packageJsonContent = File.ReadAllText(packageJsonPath);
+        JavaScriptSerializer serializer = new JavaScriptSerializer();
+
+        var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
+        serializer.RegisterConverters(converters);
+
+        var actions = serializer.Deserialize<List<ActionBase>>(packageJsonContent);
+
+        actions.Sort(new ActionComparer()); // sort by Index property (priority)
+        IDictionary<int, IAction> indexTracker = new Dictionary<int, IAction>(); //chech for duplicate indexes
+        IAction existingAction;
+        foreach (IAction action in actions)
         {
-            string packageJsonContent = File.ReadAllText(packageJsonPath);
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-
-            var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
-            serializer.RegisterConverters(converters);
-
-            var actions = serializer.Deserialize<List<IAction>>(packageJsonContent);
-
-            actions.Sort(new ActionComparer()); // sort by Index property (priority)
-            IDictionary<int, IAction> indexTracker = new Dictionary<int, IAction>(); //chech for duplicate indexes
-            IAction existingAction;
-            foreach (IAction action in actions)
+            if (indexTracker.TryGetValue(action.Index, out existingAction))
             {
-                if (indexTracker.TryGetValue(action.Index, out existingAction))
-                {
-                    throw new InvalidOperationException("Duplicate index found: " + action.Index.ToString() + " for actions '" + existingAction.ToString() + "' and '" + action.ToString() + "'.");
-                }
-                else
-                {
-                    indexTracker.Add(action.Index, action);
-                    action.Invoke();
-                }
+                throw new InvalidOperationException("Duplicate index found: " + action.Index.ToString() + " for actions '" + existingAction.ToString() + "' and '" + action.ToString() + "'.");
             }
+            else
+            {
+                indexTracker.Add(action.Index, action);
+                action.Invoke();
+            }
+        }
 
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("An error occurred: " + ex.Message);
-        }
+
 
     }
     public static void SetNetworksLocationToPrivate()
@@ -95,9 +89,9 @@ public class WinImageBuilderAutomation
     }
 }
 
-internal class ActionComparer : IComparer<IAction>
+internal class ActionComparer : IComparer<ActionBase>
 {
-    public int Compare(IAction a, IAction b)
+    public int Compare(ActionBase a, ActionBase b)
     {
         int indexA = a.Index;
         int indexB = b.Index;
@@ -113,7 +107,6 @@ internal class CustomDispatchConverter : JavaScriptConverter
     {
 
         object indexValue;
-        object actionData;
 
         if (!dictionary.TryGetValue("index", out indexValue))
         {
@@ -190,8 +183,9 @@ internal class CustomDispatchConverter : JavaScriptConverter
     }
     public override IEnumerable<Type> SupportedTypes
     {
-        get { return new[] { typeof(Dictionary<string, object>) }; }
+        get { return new List<Type>(new List<Type>(new[] { typeof(object) })); }
     }
+
 }
 
 
@@ -204,6 +198,7 @@ internal interface IAction
 }
 internal abstract class ActionBase : IAction
 {
+    public ActionBase() { }
     public int Index { get; set; }
 
     // Assuming ExpandString is a method that expands environment variables or similar
@@ -235,12 +230,9 @@ internal class FileAction : ActionBase
 
     public FileAction(IDictionary<string, object> action)
     {
-        this.action = action;
         this.path = (string)action["path"];
         this.parents = (bool)action["parents"];
         this.state = (State)Enum.Parse(typeof(State), (string)action["state"], true);
-        this.value = (string)action["value"];
-
     }
     public override void Invoke()
     {
@@ -299,7 +291,7 @@ internal class RegistryAction : ActionBase
             throw new ArgumentException("The 'state' property is required.");
         }
 
-        path = ExpandString(item["path"].ToString());
+        path = ExpandString((string)item["path"]);
         value = item["value"];
         force = item.ContainsKey("force") && Convert.ToBoolean(item["force"]);
         itemType = item.ContainsKey("type") ? ParseRegistryItemType(item["type"].ToString()) : RegistryValueKind.String;
@@ -445,7 +437,7 @@ internal class UnzipAction : ActionBase
     public UnzipAction(IDictionary<string, object> action)
     {
         this.zipPath = (string)action["path"];
-        this.extractPath = (string)action["destination"];
+        this.extractPath = (string)action["dest"];
     }
 
 
