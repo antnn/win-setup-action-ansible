@@ -39,28 +39,32 @@ public class WinImageBuilderAutomation
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
 
-        var indexTracker = new ActionTracker("c:\\installed.log"); //chech for duplicate indexes
-        foreach (IAction action in actions)
+        //check for duplicate indexes
+        using (ActionTracker indexTracker = new ActionTracker("c:\\installed.log"))
         {
-            if (indexTracker.IsDone(action.Index))
+            foreach (IAction action in actions)
             {
-                throw new InvalidOperationException("Duplicate index found: "
-                 + action.Index.ToString() + " for actions '" + action.ToString()
-                 + "' and '" + action.ToString() + "'.");
-            }
-            else
-            {
-                action.Invoke();
-                indexTracker.Append(action.Index);
-                if (action.Restart)
+                if (indexTracker.IsDone(action.Index))
                 {
-                    Process.Start("shutdown", "/r /t 0");
-                    Environment.Exit(0);
+                    throw new InvalidOperationException("Duplicate index found: "
+                     + action.Index.ToString() + " for actions '" + action.ToString()
+                     + "' and '" + action.ToString() + "'.");
                 }
+                else
+                {
+                    action.Invoke();
+                    indexTracker.Append(action.Index);
+                    if (action.Restart)
+                    {
+                        indexTracker.Save();
+                        Process.Start("shutdown", "/r /t 0");
+                        Environment.Exit(0);
+                    }
 
+                }
             }
+            indexTracker.Save();
         }
-
     }
 
     public static void SetNetworksLocationToPrivate()
@@ -100,7 +104,7 @@ public class WinImageBuilderAutomation
 
 
 
-public class ActionTracker
+public class ActionTracker : IDisposable
 {
     private string path;
     private StreamWriter writer;
@@ -111,7 +115,7 @@ public class ActionTracker
         {
             File.Create(path);
         }
-        indexTracker = new Dictionary<int, string> ();
+        indexTracker = new Dictionary<int, string>();
         using (StreamReader reader = new StreamReader(path))
         {
             string line;
@@ -131,6 +135,15 @@ public class ActionTracker
     {
         indexTracker.Add(index, "");
         writer.WriteLine(index);
+    }
+    public void Save()
+    {
+        writer.Flush();
+    }
+    public void Dispose()
+    {
+        Save();
+        writer.Dispose();
     }
 }
 
@@ -390,7 +403,6 @@ internal class FileAction : ActionBase
     {
         Directory,
         Touch,
-        Present,
         Absent
     }
     private State state;
@@ -401,7 +413,6 @@ internal class FileAction : ActionBase
         try
         {
             path = (string)action["path"];
-            value = (string)action["content"];
             state = (State)Enum.Parse(typeof(State), (string)action["state"], true);
         }
         catch (Exception ex)
@@ -411,6 +422,7 @@ internal class FileAction : ActionBase
     }
     public override void Invoke()
     {
+        //mimic ansible (does 'file' state do anything?)
         switch (state)
         {
             case State.Directory:
@@ -418,12 +430,25 @@ internal class FileAction : ActionBase
                 break;
 
             case State.Touch:
-                File.Create(path);
+                DateTime newLastWriteTime = DateTime.Now;
+                if (!Directory.Exists(path))
+                {
+
+                    if (!File.Exists(path))
+                    {
+                        File.Create(path);
+                    }
+                    else
+                    {
+                        File.SetLastWriteTime(path, newLastWriteTime);
+                    }
+                }
+                else
+                {
+                    Directory.SetLastWriteTime(path, newLastWriteTime);
+                }
                 break;
 
-            case State.Present:
-                File.WriteAllText(path, value);
-                break;
 
             case State.Absent:
                 if (File.Exists(path))
@@ -674,11 +699,11 @@ internal class ExeAction : ActionBase
 
 internal class MsuAction : ActionBase
 {
-    private string packagePath;
+    private const string wusa = "wusa.exe";
     private string arguments;
+    private string package;
     public MsuAction(IDictionary<string, object> action)
     {
-        packagePath = "wusa.exe";
         try
         {
             string package = (string)action["path"];
@@ -686,20 +711,22 @@ internal class MsuAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("MsuAction: Invalid argument or missing key", ex);
         }
     }
 
     public override void Invoke()
+    // TODO think about wusa errors, because it dettaches
     {
+        if (!File.Exists(package)) { throw new ArgumentException("Msu file does not exists"); }
         Console.WriteLine("Installing: " + arguments);
         ProcessStartInfo startInfo = new ProcessStartInfo();
-        startInfo.FileName = packagePath;
+        startInfo.FileName = wusa;
         startInfo.Arguments = arguments;
         startInfo.WindowStyle = ProcessWindowStyle.Hidden;
         Process.Start(startInfo).WaitForExit();
         //aditional waiting on wusa.exe
-        WaitProcess(packagePath);
+        WaitProcess(wusa);
     }
     private void WaitProcess(string name)
     {
@@ -830,12 +857,21 @@ internal class CopyAction : ActionBase
     private string source;
     private string destination;
     private bool force;
+    private string content;
 
     public CopyAction(IDictionary<string, object> action)
     {
         try
         {
-            source = ExpandString((string)action["src"]);
+            object _src;
+            if (action.TryGetValue("content", out _src))
+            {
+                source = ExpandString((string)_src);
+            }
+            else
+            {
+                content = ExpandString((string)action["content"]);
+            }
             destination = ExpandString((string)action["dest"]);
         }
         catch (Exception ex)
@@ -843,7 +879,6 @@ internal class CopyAction : ActionBase
             throw new ArgumentException("Invalid argument or missing key", ex);
         }
 
-        // 'force' parameter is optional; default to false if not provided
         force = false;
         object forceValue;
         if (action.TryGetValue("ignoreCheck", out forceValue))
