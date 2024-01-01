@@ -49,6 +49,7 @@ public class WinImageBuilderAutomation
                 else
                 {
                     indexTracker.Add(action.Index, action);
+                    action.Invoke();
                 }
             }
 
