@@ -37,12 +37,21 @@ public class WinImageBuilderAutomation
 
             var actions = serializer.Deserialize<List<IAction>>(packageJsonContent);
 
-            actions.Sort(new ActionComparer());
-
-            foreach (var action in actions)
+            actions.Sort(new ActionComparer()); // sort by Index property (priority)
+            IDictionary<int, IAction> indexTracker = new Dictionary<int, IAction>(); //chech for duplicate indexes
+            IAction existingAction;
+            foreach (IAction action in actions)
             {
-                action.Invoke();
+                if (indexTracker.TryGetValue(action.Index, out existingAction))
+                {
+                    throw new InvalidOperationException("Duplicate index found: " + action.Index.ToString() + " for actions '" + existingAction.ToString() + "' and '" + action.ToString() + "'.");
+                }
+                else
+                {
+                    indexTracker.Add(action.Index, action);
+                }
             }
+
         }
         catch (Exception ex)
         {
@@ -154,11 +163,11 @@ internal class CustomDispatchConverter : JavaScriptConverter
         }
         if (dictionary.TryGetValue("cmd", out actionData))
         {
-            return new CmdAction((Dictionary<string, object>)actionData); // Assuming CmdAction exists
+            return new CmdAction((Dictionary<string, object>)actionData);
         }
         if (dictionary.TryGetValue("registry", out actionData))
         {
-            return new RegistryAction((Dictionary<string, object>)actionData); // Assuming RegistryAction exists
+            return new RegistryAction((Dictionary<string, object>)actionData);
         }
         if (dictionary.TryGetValue("path", out actionData))
         {
@@ -166,7 +175,7 @@ internal class CustomDispatchConverter : JavaScriptConverter
         }
         if (dictionary.TryGetValue("autostart", out actionData))
         {
-            return new AutostartAction((Dictionary<string, object>)actionData); // Assuming AutostartAction exists and is different from PathAction
+            return new AutostartAction((Dictionary<string, object>)actionData);
         }
 
         throw new Exception("Unknown action type");
