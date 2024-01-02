@@ -14,7 +14,7 @@ using Microsoft.Win32;
 /*
 * NOTE: Win7 SP1 installation forces reboot disregarding "/norestart" option
 * https://social.technet.microsoft.com/Forums/ie/en-US/c4b7c3fc-037c-4e45-ab11-f6f64837521a/how-to-disable-reboot-after-sp1-installation-distribution-as-exe-via-sccm?forum=w7itproinstall
-* It should continue installing after reboot skiping perfomed actions.
+* It should continue installing after reboot skiping installed packages
 */
 public class WinImageBuilderAutomation
 {
@@ -22,26 +22,9 @@ public class WinImageBuilderAutomation
     {
         var installationLogFile = "C:\\ansible-presetup-installation.log";
         var configDrivePath = "C:\\";//"{{config_drive}}";
-        var mainPs1Autostart = new Dictionary<string, object>
-        {
-            { "keyname", "start.ps1" },
-            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "target", configDrivePath + "start.ps1" },
-            {"args", "" }
-        };
+        AddToAutoStart(configDrivePath);
 
-        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
-        autostartAction.Invoke();
-
-        string packageJsonPath = Path.Combine(configDrivePath, "package.json");
-
-        string packageJsonContent = File.ReadAllText(packageJsonPath);
-        JavaScriptSerializer serializer = new JavaScriptSerializer();
-
-        var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
-        serializer.RegisterConverters(converters);
-
-        var actions = serializer.Deserialize<List<ActionBase>>(packageJsonContent);
+        List<ActionBase> actions = LoadAndDeserialize(configDrivePath);
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
 
@@ -64,12 +47,57 @@ public class WinImageBuilderAutomation
                         indexTracker.Save();
                         Process.Start("shutdown", "/r /t 0");
                         Environment.Exit(0);
+                        return;
                     }
 
                 }
             }
             indexTracker.Save();
         }
+        RemoveFromAutoStart(configDrivePath);
+        return;
+    }
+
+    private static void RemoveFromAutoStart(string configDrivePath)
+    {
+        var mainPs1Autostart = new Dictionary<string, object>
+        {
+            {"state", "absent" },
+            { "keyname", "start.ps1" },
+            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
+            { "target", configDrivePath + "start.ps1" },
+            {"args", "" }
+        };
+
+        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
+        autostartAction.Invoke();
+    }
+
+    private static List<ActionBase> LoadAndDeserialize(string configDrivePath)
+    {
+        List<ActionBase> actions = new List<ActionBase>();
+        string packageJsonPath = Path.Combine(configDrivePath, "package.json");
+        string packageJsonContent = File.ReadAllText(packageJsonPath);
+        JavaScriptSerializer serializer = new JavaScriptSerializer();
+        var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
+        serializer.RegisterConverters(converters);
+        actions = serializer.Deserialize<List<ActionBase>>(packageJsonContent);
+        return actions;
+    }
+
+    private static void AddToAutoStart(string configDrivePath)
+    {
+        var mainPs1Autostart = new Dictionary<string, object>
+        {
+            {"state", "present" },
+            { "keyname", "start.ps1" },
+            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
+            { "target", configDrivePath + "start.ps1" },
+            {"args", "" }
+        };
+
+        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
+        autostartAction.Invoke();
     }
     private static void CheckDuplicateIndexes(List<ActionBase> actions)
     {
@@ -408,6 +436,19 @@ internal abstract class ActionBase : IAction
     }
 
     public abstract void Invoke();
+    protected T TryGetValue<T>(IDictionary<string, object> item, string key, T defaultValue)
+    {
+        object value;
+        if (item.TryGetValue(key, out value))
+        {
+            return (T)value;
+        }
+        if (defaultValue == null)
+        {
+            throw new ArgumentException("Missing or invalid keys");
+        }
+        return defaultValue;
+    }
 
 }
 
@@ -492,30 +533,35 @@ internal class RegistryAction : ActionBase
     public enum RegistryState
     {
         Present,
-        Absent,
-        Property
+        Absent
     }
     private string path;
-    private object value;
-    private bool force;
+    private string name;
+    private object data;
     private RegistryValueKind itemType;
     private RegistryState state;
-    private bool? recurse;
-
 
     public RegistryAction(Dictionary<string, object> item)
     {
-        if (item == null || !item.ContainsKey("state") || string.IsNullOrEmpty(item["state"].ToString()))
+        try
         {
-            throw new ArgumentException("The 'state' property is required.");
+            path = TryGetValue<string>(item, "name", null);
+        }
+        catch
+        {
+            throw new ArgumentException("RegistryAction: path is reqiured");
+        }
+        name = TryGetValue(item, "name", "Default");
+
+        data = null;
+        object dataValue;
+        if (item.TryGetValue("data", out dataValue))
+        {
+            data = dataValue;
         }
 
-        path = ExpandString((string)item["path"]);
-        value = item["value"];
-        force = item.ContainsKey("force") && Convert.ToBoolean(item["force"]);
-        itemType = item.ContainsKey("type") ? ParseRegistryItemType(item["type"].ToString()) : RegistryValueKind.String;
-        state = ParseRegistryState(item["state"].ToString());
-        recurse = item.ContainsKey("recurse") ? (bool?)Convert.ToBoolean(item["recurse"]) : null;
+        itemType = ParseRegistryItemType(TryGetValue(item, "type", "String"));
+        state = ParseRegistryState((string)item["state"]);
     }
     private static RegistryState ParseRegistryState(string state)
     {
@@ -526,7 +572,7 @@ internal class RegistryAction : ActionBase
         }
         catch (ArgumentException)
         {
-            throw new ArgumentException("Invalid registry state: " + state);
+            throw new ArgumentException("RegestryAction: Invalid registry state: " + state);
         }
         return parsedState;
     }
@@ -540,7 +586,7 @@ internal class RegistryAction : ActionBase
         }
         catch (ArgumentException)
         {
-            throw new ArgumentException("Invalid registry item type: " + type);
+            throw new ArgumentException("RegistryAction: Invalid registry item type: " + type);
         }
         return parsedType;
     }
@@ -552,51 +598,24 @@ internal class RegistryAction : ActionBase
             case RegistryState.Present:
                 CreateOrUpdateRegistryKey();
                 break;
-            case RegistryState.Property:
-                CreateOrUpdateRegistryValue();
-                break;
             case RegistryState.Absent:
                 DeleteRegistryKeyOrValue();
                 break;
             default:
-                throw new InvalidOperationException("Unsupported registry state: " + state);
+                throw new InvalidOperationException("RegistryAction: Unsupported registry state: " + state);
         }
     }
     private void CreateOrUpdateRegistryKey()
     {
-        var baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null);
-        var key = force ? baseKey.CreateSubKey(path, RegistryKeyPermissionCheck.ReadWriteSubTree) : baseKey.OpenSubKey(path, RegistryKeyPermissionCheck.ReadWriteSubTree);
-
-        if (key == null)
-        {
-            throw new InvalidOperationException("Failed to create or open registry key: " + path);
-        }
-
-        // If value is provided, set it as the default value for the key
-        if (value != null)
-        {
-            key.SetValue(null, value, itemType);
-        }
-
-        key.Close();
-        baseKey.Close();
-    }
-
-
-    private void CreateOrUpdateRegistryValue()
-    {
-        var subKeyPath = GetSubKeyPath(path);
-        var valueName = GetValueName(path);
-
         using (var baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null))
         {
-            using (var key = baseKey.OpenSubKey(subKeyPath, true))
+            using (var key = baseKey.CreateSubKey(path, RegistryKeyPermissionCheck.ReadWriteSubTree))
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException("Failed to open registry key: " + subKeyPath);
+                    throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path);
                 }
-                key.SetValue(valueName, value, itemType);
+                key.SetValue(name, data);
             }
         }
     }
@@ -604,25 +623,23 @@ internal class RegistryAction : ActionBase
 
     private void DeleteRegistryKeyOrValue()
     {
-        var subKeyPath = GetSubKeyPath(path);
-        var valueName = GetValueName(path);
 
         using (var baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null))
         {
-            using (var key = baseKey.OpenSubKey(subKeyPath, true))
+            using (var key = baseKey.OpenSubKey(path, true))
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException("Failed to open registry key: " + subKeyPath);
+                    throw new InvalidOperationException("RegistryAction: Failed to open registry key: " + path);
                 }
 
-                if (string.IsNullOrEmpty(valueName))
+                if (name == "Default")
                 {
-                    key.DeleteSubKeyTree(subKeyPath);
+                    key.DeleteSubKeyTree(path);
                 }
                 else
                 {
-                    key.DeleteValue(valueName);
+                    key.DeleteValue(name);
                 }
             }
         }
@@ -822,30 +839,18 @@ class DismAction : ActionBase
 
     public DismAction(IDictionary<string, object> action)
     {
-        object pathValue;
-        if (action.TryGetValue("path", out pathValue))
+        try
         {
-            packagePath = (string)pathValue;
+            packagePath = TryGetValue<string>(action, "path", null);
         }
-        else
+        catch (Exception ex)
         {
-            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key.");
-        }
-
-        ignoreCheck = false;
-        preventPending = false;
-
-        object ignoreCheckValue;
-        if (action.TryGetValue("ignoreCheck", out ignoreCheckValue))
-        {
-            ignoreCheck = (bool)ignoreCheckValue;
+            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key.", ex);
         }
 
-        object preventPendingValue;
-        if (action.TryGetValue("preventPending", out preventPendingValue))
-        {
-            preventPending = (bool)preventPendingValue;
-        }
+        ignoreCheck = TryGetValue(action, "ignorecheck", false);
+        preventPending = TryGetValue(action, "preventpending", false);
+
     }
 
     public override void Invoke()
@@ -903,12 +908,7 @@ internal class CopyAction : ActionBase
             throw new ArgumentException("CopyAction: Invalid argument or missing key", ex);
         }
 
-        force = false;
-        object forceValue;
-        if (action.TryGetValue("force", out forceValue))
-        {
-            force = (bool)forceValue;
-        }
+        force = TryGetValue(action, "force", false);
     }
 
     public override void Invoke()
@@ -1088,28 +1088,29 @@ internal class AutostartAction : ActionBase
     private string interpreter;
     private string args;
     private string target;
+    private State state;
+    public enum State
+    {
+        Present,
+        Absent
+    }
 
     public AutostartAction(IDictionary<string, object> item)
     {
-        keyName = ExpandString(GetStringValue(item, "keyname", null));
-        interpreter = ExpandString(GetStringValue(item, "interpreter", ""));
-        target = ExpandString(GetStringValue(item, "target", ""));
-        args = ExpandString(GetStringValue(item, "args", ""));
+        try
+        {
+            keyName = ExpandString(TryGetValue<string>(item, "keyname", null));
+            State state = (State)Enum.Parse(typeof(State),TryGetValue<string>(item, "state", null), true);
+            interpreter = ExpandString(TryGetValue(item, "interpreter", ""));
+            target = ExpandString(TryGetValue(item, "target", ""));
+            args = ExpandString(TryGetValue(item, "args", ""));
+        }
+        catch
+        {
+            throw new ArgumentException("AutostartAction: Missing or invalid key");
+        }
     }
 
-    private string GetStringValue(IDictionary<string, object> item, string key, string defaultValue)
-    {
-        object value;
-        if (item.TryGetValue(key, out value) && value is string)
-        {
-            return (string)value;
-        }
-        if (defaultValue == null)
-        {
-            throw new ArgumentException("AutostartAction: Missing or invalid keys");
-        }
-        return defaultValue;
-    }
 
     public override void Invoke()
     {
@@ -1119,7 +1120,15 @@ internal class AutostartAction : ActionBase
         {
             if (key != null)
             {
-                key.SetValue(keyName, value, RegistryValueKind.String);
+                switch (state)
+                {
+                    case State.Present:
+                        key.SetValue(keyName, value, RegistryValueKind.String);
+                        break;
+                    case State.Absent:
+                        key.DeleteValue(keyName);
+                        break;
+                }
             }
             else
             {
