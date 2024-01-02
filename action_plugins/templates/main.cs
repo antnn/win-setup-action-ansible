@@ -6,9 +6,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Web.Script.Serialization; // keep FullName, otherwise - undefined reference
+using System.Web.Script.Serialization;
 using Microsoft.Win32;
-using System.Diagnostics.Eventing.Reader;
+
 
 
 
@@ -16,12 +16,13 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
+        var installationLogFile = "C:\\ansible-presetup-installation.log";
         var configDrivePath = "C:\\";//"{{config_drive}}";
         var mainPs1Autostart = new Dictionary<string, object>
         {
-            { "file", "start.ps1" },
+            { "keyname", "start.ps1" },
             { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "destination", configDrivePath },
+            { "target", configDrivePath + "start.ps1" },
             {"args", "" }
         };
 
@@ -42,7 +43,7 @@ public class WinImageBuilderAutomation
 
         CheckDuplicateIndexes(actions);
 
-        using (ActionTracker indexTracker = new ActionTracker("c:\\installed.log"))
+        using (ActionTracker indexTracker = new ActionTracker(installationLogFile))
         {
             foreach (IAction action in actions)
             {
@@ -431,7 +432,7 @@ internal class FileAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("FileAction: Invalid argument or missing key", ex);
         }
     }
     public override void Invoke()
@@ -475,7 +476,7 @@ internal class FileAction : ActionBase
                 }
                 else
                 {
-                    throw new IOException("Path does not exist");
+                    throw new IOException("FileAction: Path does not exist");
                 }
                 break;
         }
@@ -652,7 +653,7 @@ internal class UnzipAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("ZipAction: Invalid argument or missing key", ex);
         }
     }
 
@@ -695,7 +696,7 @@ internal class ExeAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("ExeAction: Invalid argument or missing key", ex);
         }
     }
 
@@ -777,7 +778,7 @@ internal class MsiAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("MsiAction: Invalid argument or missing key", ex);
         }
     }
 
@@ -824,7 +825,7 @@ class DismAction : ActionBase
         }
         else
         {
-            throw new ArgumentException("The action dictionary must contain a 'path' key.");
+            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key.");
         }
 
         ignoreCheck = false;
@@ -849,7 +850,7 @@ class DismAction : ActionBase
         int result = DismOpenSession(DISM_ONLINE_IMAGE, null, null, out session);
         if (result != 0)
         {
-            throw new Exception("Failed to open DISM session for the online image.");
+            throw new Exception("DismAction: Failed to open DISM session for the online image.");
         }
 
         try
@@ -857,7 +858,7 @@ class DismAction : ActionBase
             result = DismAddPackage(session, packagePath, ignoreCheck, preventPending, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             if (result != 0)
             {
-                throw new Exception("Failed to add package to the online image.");
+                throw new Exception("DismAction: Failed to add package to the online image.");
             }
         }
         finally
@@ -865,7 +866,7 @@ class DismAction : ActionBase
             result = DismCloseSession(session);
             if (result != 0)
             {
-                throw new Exception("Failed to close DISM session for the online image.");
+                throw new Exception("DismAction: Failed to close DISM session for the online image.");
             }
         }
     }
@@ -979,7 +980,7 @@ internal class CmdAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("CmdAction: Invalid argument or missing key", ex);
         }
     }
 
@@ -1001,7 +1002,7 @@ internal class CmdAction : ActionBase
         catch (Exception ex)
         {
             // Handle any exceptions that may occur during the command execution
-            Console.WriteLine("An error occurred while running the command: " + ex.Message);
+            Console.WriteLine("CmdAction: An error occurred while running the command: " + ex.Message);
         }
     }
 }
@@ -1030,7 +1031,7 @@ internal class PathAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("PathAction: Invalid argument or missing key", ex);
         }
 
         try
@@ -1040,7 +1041,7 @@ internal class PathAction : ActionBase
         catch (ArgumentException)
         {
             // Handle the case where the string does not represent a valid state
-            throw new ArgumentException("Invalid state value. Only 'Present' or 'Absent' are supported.");
+            throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported.");
         }
 
     }
@@ -1070,7 +1071,7 @@ internal class PathAction : ActionBase
                 }
                 break;
             default:
-                throw new ArgumentException("Invalid state value. Only 'Present' or 'Absent' are supported.");
+                throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported.");
         }
     }
 }
@@ -1079,35 +1080,42 @@ internal class PathAction : ActionBase
 
 internal class AutostartAction : ActionBase
 {
-    private string entry;
+    private string keyName;
     private string interpreter;
     private string args;
-    private string destination;
+    private string target;
 
     public AutostartAction(IDictionary<string, object> item)
     {
-        try
+        keyName = ExpandString(GetStringValue(item, "keyname", null));
+        interpreter = ExpandString(GetStringValue(item, "interpreter", ""));
+        target = ExpandString(GetStringValue(item, "target", ""));
+        args = ExpandString(GetStringValue(item, "args", ""));
+    }
+
+    private string GetStringValue(IDictionary<string, object> item, string key, string defaultValue)
+    {
+        object value;
+        if (item.TryGetValue(key, out value) && value is string)
         {
-            entry = ExpandString((string)item["file"]);
-            interpreter = ExpandString((string)item["interpreter"]);
-            destination = ExpandString((string)item["destination"]);
-            args = ExpandString((string)item["args"]);
+            return (string)value;
         }
-        catch (Exception ex)
+        if (defaultValue == null)
         {
-            throw new ArgumentException("Invalid argument or missing key", ex);
+            throw new ArgumentException("AutostartAction: Missing or invalid keys");
         }
+        return defaultValue;
     }
 
     public override void Invoke()
     {
-        string value = string.Format("cmd /C \"{0}\" \"{1}\\{2}\" {3}", interpreter, destination, entry, args);
+        string value = string.Format("cmd /C \"{0}\" \"{1}\" {2}", interpreter, target, args);
 
         using (RegistryKey key = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
         {
             if (key != null)
             {
-                key.SetValue(entry, value, RegistryValueKind.String);
+                key.SetValue(keyName, value, RegistryValueKind.String);
             }
             else
             {
