@@ -11,7 +11,11 @@ using Microsoft.Win32;
 
 
 
-
+/*
+* NOTE: Win7 SP1 installation forces reboot disregarding "/norestart" option
+* https://social.technet.microsoft.com/Forums/ie/en-US/c4b7c3fc-037c-4e45-ab11-f6f64837521a/how-to-disable-reboot-after-sp1-installation-distribution-as-exe-via-sccm?forum=w7itproinstall
+* It should continue installing after reboot skiping perfomed actions.
+*/
 public class WinImageBuilderAutomation
 {
     public static void Main()
