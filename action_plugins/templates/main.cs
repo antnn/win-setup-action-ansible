@@ -22,9 +22,10 @@ public class WinImageBuilderAutomation
     {
         var installationLogFile = "C:\\ansible-presetup-installation.log";
         var configDrivePath = "C:\\";//"{{config_drive}}";
+        // continue setup after reboot
         AddToAutoStart(configDrivePath);
 
-        List<ActionBase> actions = LoadAndDeserialize(configDrivePath);
+        List<ActionBase> actions = LoadAndDeserialize(Path.Combine(configDrivePath, "package.json"));
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
 
@@ -54,29 +55,15 @@ public class WinImageBuilderAutomation
             }
             indexTracker.Save();
         }
-        RemoveFromAutoStart(configDrivePath);
+        RemoveFromAutoStart();
         return;
     }
 
-    private static void RemoveFromAutoStart(string configDrivePath)
-    {
-        var mainPs1Autostart = new Dictionary<string, object>
-        {
-            {"state", "absent" },
-            { "keyname", "start.ps1" },
-            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "target", configDrivePath + "start.ps1" },
-            {"args", "" }
-        };
 
-        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
-        autostartAction.Invoke();
-    }
 
-    private static List<ActionBase> LoadAndDeserialize(string configDrivePath)
+    private static List<ActionBase> LoadAndDeserialize(string packageJsonPath)
     {
         List<ActionBase> actions = new List<ActionBase>();
-        string packageJsonPath = Path.Combine(configDrivePath, "package.json");
         string packageJsonContent = File.ReadAllText(packageJsonPath);
         JavaScriptSerializer serializer = new JavaScriptSerializer();
         var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
@@ -94,6 +81,17 @@ public class WinImageBuilderAutomation
             { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
             { "target", configDrivePath + "start.ps1" },
             {"args", "" }
+        };
+
+        AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
+        autostartAction.Invoke();
+    }
+    private static void RemoveFromAutoStart()
+    {
+        var mainPs1Autostart = new Dictionary<string, object>
+        {
+            {"state", "absent" },
+            { "keyname", "start.ps1" },
         };
 
         AutostartAction autostartAction = new AutostartAction(mainPs1Autostart);
@@ -1100,7 +1098,7 @@ internal class AutostartAction : ActionBase
         try
         {
             keyName = ExpandString(TryGetValue<string>(item, "keyname", null));
-            State state = (State)Enum.Parse(typeof(State),TryGetValue<string>(item, "state", null), true);
+            State state = (State)Enum.Parse(typeof(State), TryGetValue<string>(item, "state", null), true);
             interpreter = ExpandString(TryGetValue(item, "interpreter", ""));
             target = ExpandString(TryGetValue(item, "target", ""));
             args = ExpandString(TryGetValue(item, "args", ""));

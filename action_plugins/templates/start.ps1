@@ -28,9 +28,15 @@ function Import-DotNetAssembly() {
     $MainCodeFile = "${CONFIGDRIVE}\main.cs";
     $MainCodeFile = "C:\Users\Virt\Documents\ConsoleApplication1\Program.cs"
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
-    $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions",
-            "System.Management" )
-    Add-Type -ReferencedAssemblies $scriptAssembly -TypeDefinition $sourceCode -Language CSharp
+    $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions", 
+            "System.Management", "WindowsBase")
+    $osVersion = [System.Environment]::OSVersion
+    if ($osVersion.Version.Major -eq 6 -and $osVersion.Version.Minor -eq 1) {
+        $language = "CSharpVersion3"
+    } else {
+        $language = "CSharp"
+    }
+    Add-Type -ReferencedAssemblies $scriptAssembly -TypeDefinition $sourceCode -Language $language -IgnoreWarnings
 }
 
 function Get-NamesOfAssembliesToLoad {
