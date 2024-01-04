@@ -20,18 +20,23 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        String installationLogFile = "C:\\ansible-presetup-installation.log";
-        String configDrivePath = "C:\\";//"{{config_drive}}";
-        // continue setup after reboot
-        AddToAutoStart(configDrivePath);
+        string packageJsonPath = "{{install_json}}"; //templated by Ansible
+        string entrypointPath = "{{entry_point}}";
 
-        List<ActionBase> actions = LoadAndDeserialize(Path.Combine(configDrivePath, "package.json"));
+        SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
+
+        var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
+    
+        AddToAutoStart(entrypointPath);
+
+      
+        List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
 
         CheckDuplicateIndexes(actions);
 
-        using (ActionTracker indexTracker = new ActionTracker(installationLogFile))
+        using (ActionTracker indexTracker = new ActionTracker(doneList))
         {
             foreach (IAction action in actions)
             {
@@ -56,6 +61,7 @@ public class WinImageBuilderAutomation
             indexTracker.Save();
         }
         RemoveFromAutoStart();
+        instance.Dispose();
         return;
     }
 
@@ -72,14 +78,14 @@ public class WinImageBuilderAutomation
         return actions;
     }
 
-    private static void AddToAutoStart(string configDrivePath)
+    private static void AddToAutoStart(string startupPath)
     {
         Dictionary<string, object> mainPs1Autostart = new Dictionary<string, object>
         {
             {"state", "present" },
             { "keyname", "start.ps1" },
             { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "target", configDrivePath + "start.ps1" },
+            { "target", startupPath},
             {"args", "" }
         };
 

@@ -1,5 +1,4 @@
-$CONFIGDRIVE = "{{config_drive}}"
-$CONFIGDRIVE = "C:"
+$startupPath = "{{entry_point}}"
 $adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
 function Start-App() {
@@ -20,16 +19,15 @@ function Start-ElevatedProcess() {
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList $adminUserName, $PWord
     Start-Process powershell.exe -Credential $adminCredential `
-        -ArgumentList "-NoExit -ExecutionPolicy Bypass ${CONFIGDRIVE}\start.ps1"
+        -ArgumentList "-NoExit -ExecutionPolicy Bypass $startupPath"
 
 }
 
 function Import-DotNetAssembly() {
-    $MainCodeFile = "${CONFIGDRIVE}\main.cs";
-    $MainCodeFile = "C:\Users\Virt\Documents\ConsoleApplication1\Program.cs"
+    $MainCodeFile = "{{main_code}}";
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
     $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions", 
-            "System.Management", "WindowsBase")
+            "System.Management")
     $osVersion = [System.Environment]::OSVersion
     if ($osVersion.Version.Major -eq 6 -and $osVersion.Version.Minor -eq 1) {
         $language = "CSharpVersion3"

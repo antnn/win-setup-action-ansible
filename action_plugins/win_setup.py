@@ -8,8 +8,10 @@ from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleError, AnsibleFileNotFound, AnsibleAction, AnsibleActionFail
 
 default_config_drive = "D:"
-default_first_logon_cmd = "cmd.exe /c powershell.exe -NoExit -ExecutionPolicy Bypass -File %s\\start.ps1" % default_config_drive
-
+default_entry_point = "%s\\start.ps1" % default_config_drive
+default_main_code_file = "%s\\main.cs" % default_config_drive
+default_first_logon_cmd = "cmd.exe /c powershell.exe -NoExit -ExecutionPolicy Bypass -File %s "  % default_entry_point
+default_install_json_path = "%s\\install.json" % default_config_drive
 
 class ActionModule(ActionBase):
     _TEMPLATES_DIR = '%s/templates' % os.path.dirname(__file__)
@@ -42,8 +44,11 @@ class ActionModule(ActionBase):
                 'user_password', None)
             _task_vars['computer_name'] = self._task.args.get(
                 'computer_name', None)
-            _task_vars['config_drive'] = self._task.args.get('config_drive', default_config_drive)
+            #_task_vars['config_drive'] = self._task.args.get('config_drive', default_config_drive)
             _task_vars['first_logon_cmd'] = self._task.args.get('first_logon_cmd', default_first_logon_cmd)
+            _task_vars['entry_point'] = default_entry_point
+            _task_vars['main_code'] = default_main_code_file
+            _task_vars['install_json'] =  default_install_json_path
 
             for k, v in _task_vars.items():
                 if v is None:
@@ -54,20 +59,12 @@ class ActionModule(ActionBase):
 
             res = self.___template(dest, "autounattend.xml", task_vars)
             res = self.___template(dest, "start.ps1", task_vars)
-            res = self.___template(dest, "main.ps1", task_vars)
-
-            # res = self.___create_dir(
-            #    dest=dest, dir=drivers_dir, task_vars=task_vars)
-            # res = self.___create_dir(
-            #    dest=dest, dir=install_dir, task_vars=task_vars)
+            res = self.___template(dest, "main.cs", task_vars)
 
             _dest = "%s/install.json" % dest
             res = self.___copy(dest=_dest,
                                src=None, content=install_arg, task_vars=task_vars)
-            # _dest = "%s/main.ps1" % dest
-            # _src = "%s/main.ps1" % self._TEMPLATES_DIR
-            # res = self.___copy(dest=_dest, src=_src,
-            #                   content=None, task_vars=task_vars)
+          
             result.update(res)
 
         except any as e:
@@ -113,11 +110,3 @@ class ActionModule(ActionBase):
                              templar=self._templar,
                              shared_loader_obj=self._shared_loader_obj)
         return copy_action.run(task_vars=task_vars)
-
-# def ___create_dir(self, dest, dir, task_vars):
-#         file_args = dict()
-#         file_args['dest'] = "%s/%s" % (dest, dir)
-#         file_args['state'] = "directory"
-#         return self._execute_module(module_name='ansible.legacy.file',
-#                                     module_args=file_args,
-#                                     task_vars=task_vars)
