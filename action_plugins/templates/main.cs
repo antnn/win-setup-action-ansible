@@ -20,8 +20,8 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        var installationLogFile = "C:\\ansible-presetup-installation.log";
-        var configDrivePath = "C:\\";//"{{config_drive}}";
+        String installationLogFile = "C:\\ansible-presetup-installation.log";
+        String configDrivePath = "C:\\";//"{{config_drive}}";
         // continue setup after reboot
         AddToAutoStart(configDrivePath);
 
@@ -66,7 +66,7 @@ public class WinImageBuilderAutomation
         List<ActionBase> actions = new List<ActionBase>();
         string packageJsonContent = File.ReadAllText(packageJsonPath);
         JavaScriptSerializer serializer = new JavaScriptSerializer();
-        var converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
+        List<JavaScriptConverter> converters = new List<JavaScriptConverter> { new CustomDispatchConverter() };
         serializer.RegisterConverters(converters);
         actions = serializer.Deserialize<List<ActionBase>>(packageJsonContent);
         return actions;
@@ -74,7 +74,7 @@ public class WinImageBuilderAutomation
 
     private static void AddToAutoStart(string configDrivePath)
     {
-        var mainPs1Autostart = new Dictionary<string, object>
+        Dictionary<string, object> mainPs1Autostart = new Dictionary<string, object>
         {
             {"state", "present" },
             { "keyname", "start.ps1" },
@@ -88,7 +88,7 @@ public class WinImageBuilderAutomation
     }
     private static void RemoveFromAutoStart()
     {
-        var mainPs1Autostart = new Dictionary<string, object>
+        Dictionary<string, object> mainPs1Autostart = new Dictionary<string, object>
         {
             {"state", "absent" },
             { "keyname", "start.ps1" },
@@ -99,9 +99,9 @@ public class WinImageBuilderAutomation
     }
     private static void CheckDuplicateIndexes(List<ActionBase> actions)
     {
-        var indexes = new HashSet<int>();
+        HashSet<int> indexes = new HashSet<int>();
 
-        foreach (var action in actions)
+        foreach (IAction action in actions)
         {
             if (indexes.Contains(action.Index))
             {
@@ -603,11 +603,48 @@ internal class RegistryAction : ActionBase
                 throw new InvalidOperationException("RegistryAction: Unsupported registry state: " + state);
         }
     }
+    private RegistryKey OpenBaseKey(string path)
+    {
+        int hiveEndIndex = path.IndexOf(':');
+        if (hiveEndIndex < 0)
+        {
+            throw new ArgumentException("RegistryAction: Invalid registry key path");
+        }
+
+        string hive = path.Substring(0, hiveEndIndex);
+        string keyPath = path.Substring(hiveEndIndex + 1);
+
+        RegistryKey baseKey;
+
+        switch (hive.ToUpper())
+        {
+            case "HKCC":
+                baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.CurrentConfig, null);
+                break;
+            case "HKCR":
+                baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.ClassesRoot, null);
+                break;
+            case "HKCU":
+                baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.CurrentUser, null);
+                break;
+            case "HKLM":
+                baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null);
+                break;
+            case "HKU":
+                baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.Users, null);
+                break;
+            default:
+                throw new ArgumentException("RegistryAction: Invalid registry hive");
+        }
+
+        return baseKey;
+    }
+
     private void CreateOrUpdateRegistryKey()
     {
-        using (var baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null))
+        using (RegistryKey baseKey = OpenBaseKey(path))
         {
-            using (var key = baseKey.CreateSubKey(path, RegistryKeyPermissionCheck.ReadWriteSubTree))
+            using (RegistryKey key = baseKey.CreateSubKey(path, RegistryKeyPermissionCheck.ReadWriteSubTree))
             {
                 if (key == null)
                 {
@@ -622,9 +659,9 @@ internal class RegistryAction : ActionBase
     private void DeleteRegistryKeyOrValue()
     {
 
-        using (var baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, null))
+        using (RegistryKey baseKey = OpenBaseKey(path))
         {
-            using (var key = baseKey.OpenSubKey(path, true))
+            using (RegistryKey key = baseKey.OpenSubKey(path, true))
             {
                 if (key == null)
                 {
@@ -646,13 +683,13 @@ internal class RegistryAction : ActionBase
 
     private static string GetSubKeyPath(string fullPath)
     {
-        var lastIndex = fullPath.LastIndexOf('\\');
+        int lastIndex = fullPath.LastIndexOf('\\');
         return lastIndex > 0 ? fullPath.Substring(0, lastIndex) : fullPath;
     }
 
     private static string GetValueName(string fullPath)
     {
-        var lastIndex = fullPath.LastIndexOf('\\');
+        int lastIndex = fullPath.LastIndexOf('\\');
         return lastIndex > 0 ? fullPath.Substring(lastIndex + 1) : string.Empty;
     }
 }
@@ -1052,7 +1089,7 @@ internal class PathAction : ActionBase
     {
         string currentPath = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine);
         string[] paths = currentPath.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-        var pathList = new List<string>(paths);
+        List<string> pathList = new List<string>(paths);
 
         switch (state)
         {
@@ -1112,7 +1149,7 @@ internal class AutostartAction : ActionBase
 
     public override void Invoke()
     {
-        string value = string.Format("cmd /C \"{0}\" \"{1}\" {2}", interpreter, target, args);
+        string value = string.Format("cmd /C \"{0} {1} {2} \"", interpreter, target, args);
 
         using (RegistryKey key = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true))
         {
@@ -1135,8 +1172,6 @@ internal class AutostartAction : ActionBase
         }
     }
 }
-
-
 
 
 
