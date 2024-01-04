@@ -1,4 +1,5 @@
 $startupPath = "{{entry_point}}"
+$MainCodeFile = "{{main_code}}";
 $adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
 function Start-App() {
@@ -24,7 +25,6 @@ function Start-ElevatedProcess() {
 }
 
 function Import-DotNetAssembly() {
-    $MainCodeFile = "{{main_code}}";
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
     $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions", 
             "System.Management")
