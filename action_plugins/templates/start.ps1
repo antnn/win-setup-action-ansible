@@ -2,8 +2,8 @@ $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $driveLetter = $scriptPath.Substring(0, 2)
 
 $installJson = "$driveLetter\{{install_json}}"
-$startupPath = "$driveLetter\start.ps1";
-$MainCodeFile = "$driveLetter\main.cs";
+$startupPath = "$driveLetter\{{entry_point}}";
+$MainCodeFile = "$driveLetter\{{main_code}}";
 $adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
 function Start-App() {

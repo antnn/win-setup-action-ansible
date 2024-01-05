@@ -12,14 +12,19 @@ from ansible.errors import (
     AnsibleActionFail,
 )
 
-default_config_drive = "D:"
-default_entry_point = "%s\\start.ps1" % default_config_drive
-default_main_code_file = "%s\\main.cs" % default_config_drive
+
+default_entry_point = "start.ps1"
+default_main_code_file = "main.cs"
 default_first_logon_cmd = (
-    "cmd.exe /c powershell.exe -NoExit -ExecutionPolicy Bypass -File %s "
-    % default_entry_point
+    "powershell.exe -NoExit -ExecutionPolicy Bypass -File "
 )
+default_first_logon_cmd = (
+    "cmd.exe /C for %%D in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) do @(if exist %%D:\\%s ( %s %%D:\\%s & goto :break) else (echo Not found)) & :break"
+    % (default_entry_point, default_first_logon_cmd, default_entry_point)
+)
+
 default_install_json_path = "install.json"
+
 
 class ActionModule(ActionBase):
     _TEMPLATES_DIR = "%s/templates" % os.path.dirname(__file__)
