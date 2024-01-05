@@ -1,4 +1,3 @@
-#NOTE TLS 1.2 https://catalog.update.microsoft.com/search.aspx?q=kb3140245
 ---
 - hosts: 127.0.0.1
   connection: local
@@ -9,6 +8,7 @@
     # Put drivers in {{config_dive}}/$WinpeDriver$ Windows will autoinstall it
     drivers_dir: '$WinpeDriver$'
   tasks:
+  #NOTE TLS 1.2 https://catalog.update.microsoft.com/search.aspx?q=kb3140245
     - name: Create temporary work directory
       ansible.builtin.tempfile:
         state: directory
@@ -161,12 +161,15 @@
           - NetKVM/w7/amd64/netkvmco.dll
           - NetKVM/w7/amd64/netkvmco.pdb
     - name: Create an windows config ISO file with Joliet support
+    # default_entry_point = "%s\\start.ps1" % default_config_drive
+    # default_main_code_file = "%s\\main.cs" % default_config_drive
+    # default_install_json_path = "%s\\install.json" % default_config_drive
       community.general.iso_create:
         src_files:
           - '{{ iso_temp_root_build_dir.path }}/iso/{{drivers_dir}}'
           - '{{ iso_temp_root_build_dir.path }}/iso/{{pkg_dir}}'
           - '{{ iso_temp_root_build_dir.path }}/iso/start.ps1'
-          - '{{ iso_temp_root_build_dir.path }}/iso/main.ps1'
+          - '{{ iso_temp_root_build_dir.path }}/iso/main.cs'
           - '{{ iso_temp_root_build_dir.path }}/iso/install.json'
           - '{{ iso_temp_root_build_dir.path }}/iso/autounattend.xml'
         dest_iso: '{{ iso_output_path }}'

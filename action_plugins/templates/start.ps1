@@ -1,5 +1,8 @@
-$startupPath = "{{entry_point}}"
-$MainCodeFile = "{{main_code}}";
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$driveLetter = $scriptPath.Substring(0, 2)
+
+$startupPath = "$driveLetter\start.ps1";
+$MainCodeFile = "$driveLetter\main.cs";
 $adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
 function Start-App() {

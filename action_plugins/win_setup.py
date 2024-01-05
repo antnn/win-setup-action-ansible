@@ -78,7 +78,7 @@ class ActionModule(ActionBase):
             res = self.___template(dest, "start.ps1", task_vars)
             res = self.___template(dest, "main.cs", task_vars)
 
-            _dest = default_install_json_path
+            _dest = "%s/install.json" % dest
             res = self.___copy(
                 dest=_dest,  # output install from yml to json
                 src=None,

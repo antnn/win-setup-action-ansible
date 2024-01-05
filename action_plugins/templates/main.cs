@@ -22,14 +22,21 @@ public class WinImageBuilderAutomation
     {
         string packageJsonPath = "{{install_json}}"; //templated by Ansible
         string entrypointPath = "{{entry_point}}";
+        Main2(packageJsonPath, entrypointPath);
+        return;
+    }
+    public static void Main2(string packageJsonPath, string entrypointPath)
+    {
+        //string packageJsonPath = "{{install_json}}"; //templated by Ansible
+        //string entrypointPath = "{{entry_point}}";
 
         SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
 
         var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
-    
+
         AddToAutoStart(entrypointPath);
 
-      
+
         List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
         actions.Sort(new ActionComparer()); // sort by Index property (priority)
@@ -157,7 +164,6 @@ public class WinImageBuilderAutomation
 
 public class ActionTracker : IDisposable
 {
-    private string path;
     private StreamWriter writer;
     private IDictionary<int, string> indexTracker;
     public ActionTracker(string path)
@@ -459,10 +465,7 @@ internal abstract class ActionBase : IAction
 
 internal class FileAction : ActionBase
 {
-    private IDictionary<string, object> action;
     private string path;
-    private bool parents;
-    private string value;
     public enum State
     {
         Directory,
@@ -685,19 +688,6 @@ internal class RegistryAction : ActionBase
             }
         }
     }
-
-
-    private static string GetSubKeyPath(string fullPath)
-    {
-        int lastIndex = fullPath.LastIndexOf('\\');
-        return lastIndex > 0 ? fullPath.Substring(0, lastIndex) : fullPath;
-    }
-
-    private static string GetValueName(string fullPath)
-    {
-        int lastIndex = fullPath.LastIndexOf('\\');
-        return lastIndex > 0 ? fullPath.Substring(lastIndex + 1) : string.Empty;
-    }
 }
 
 
@@ -783,7 +773,7 @@ internal class MsuAction : ActionBase
     {
         try
         {
-            string package = (string)action["path"];
+            package = (string)action["path"];
             arguments = package + " " + (string)action["args"];
         }
         catch (Exception ex)
@@ -1141,7 +1131,7 @@ internal class AutostartAction : ActionBase
         try
         {
             keyName = ExpandString(TryGetValue<string>(item, "keyname", null));
-            State state = (State)Enum.Parse(typeof(State), TryGetValue<string>(item, "state", null), true);
+            state = (State)Enum.Parse(typeof(State), TryGetValue<string>(item, "state", null), true);
             interpreter = ExpandString(TryGetValue(item, "interpreter", ""));
             target = ExpandString(TryGetValue(item, "target", ""));
             args = ExpandString(TryGetValue(item, "args", ""));
