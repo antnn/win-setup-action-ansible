@@ -37,26 +37,27 @@
         install:
           - index: 1
             description: windows 7 sp1 x86 kb2533552
-            package:
+            msu:
               path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb2533552-x86.msu'
               args: /quiet /NoRestart
           - description: windows 7 sp1 x86
             index: 2
-            package: 
+            restart: true
+            exe: 
               path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb976932-x86.exe'
               args: /quiet
           - index: 3
-            package:
+            msi:
               path: '{{config_drive}}\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
               args: /passive /norestart
           - index: 4
             description: win7 sha256 codesign
             restart: true
-            package:
+            msu:
               path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb4474419-v3-x86.msu'
               args: /quiet /NoRestart
           - index: 5
-            package:
+            exe:
               path: '{{config_drive}}\{{pkg_dir}}\ndp48-x86-x64-allos-enu.exe'
               args: /q /norestart
           - description: create dir temp\Win7-KB3191566-x86

@@ -32,7 +32,7 @@ public class WinImageBuilderAutomation
         {
             instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
 
-            var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
+            string doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
 
             List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
