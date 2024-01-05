@@ -19,8 +19,7 @@ default_first_logon_cmd = (
     "cmd.exe /c powershell.exe -NoExit -ExecutionPolicy Bypass -File %s "
     % default_entry_point
 )
-default_install_json_path = "%s\\install.json" % default_config_drive
-
+default_install_json_path = "install.json"
 
 class ActionModule(ActionBase):
     _TEMPLATES_DIR = "%s/templates" % os.path.dirname(__file__)

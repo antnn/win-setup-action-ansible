@@ -25,17 +25,11 @@ public class WinImageBuilderAutomation
         Main2(packageJsonPath, entrypointPath);
         return;
     }
-    public static void Main2(string packageJsonPath, string entrypointPath)
+    public static void Main2(string packageJsonPath)
     {
-        //string packageJsonPath = "{{install_json}}"; //templated by Ansible
-        //string entrypointPath = "{{entry_point}}";
-
         SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
 
         var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
-
-        AddToAutoStart(entrypointPath);
-
 
         List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
