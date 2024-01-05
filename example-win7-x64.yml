@@ -23,7 +23,7 @@
         # destination (root dir) for config files, generate ISO file in next tasks
         dest: '{{ iso_temp_root_build_dir.path }}/iso'
         # Change credentials after ansible installation if needed
-        admin_name: '\Administrator'
+        admin_name: 'Administrator'
         admin_password: "Passw0rd!"
         user_name: "IEUser"
         user_password: "Passw0rd!"

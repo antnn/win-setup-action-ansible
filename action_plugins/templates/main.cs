@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
+using System.Management.Instrumentation;
 
 
 
@@ -21,49 +22,55 @@ public class WinImageBuilderAutomation
     public static void Main()
     {
         string packageJsonPath = "{{install_json}}"; //templated by Ansible
-        string entrypointPath = "{{entry_point}}";
-        Main2(packageJsonPath, entrypointPath);
+        Main2(packageJsonPath);
         return;
     }
     public static void Main2(string packageJsonPath)
     {
-        SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
-
-        var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
-
-        List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
-
-        actions.Sort(new ActionComparer()); // sort by Index property (priority)
-
-        CheckDuplicateIndexes(actions);
-
-        using (ActionTracker indexTracker = new ActionTracker(doneList))
+        SingleInstance instance=null;
+        try
         {
-            foreach (IAction action in actions)
-            {
-                if (indexTracker.IsDone(action.Index))
-                {
-                    continue;
-                }
-                else
-                {
-                    action.Invoke();
-                    indexTracker.Append(action.Index);
-                    if (action.Restart)
-                    {
-                        indexTracker.Save();
-                        Process.Start("shutdown", "/r /t 0");
-                        Environment.Exit(0);
-                        return;
-                    }
+            instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
 
+            var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
+
+            List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
+
+            actions.Sort(new ActionComparer()); // sort by Index property (priority)
+
+            CheckDuplicateIndexes(actions);
+
+            using (ActionTracker indexTracker = new ActionTracker(doneList))
+            {
+                foreach (IAction action in actions)
+                {
+                    if (indexTracker.IsDone(action.Index))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        action.Invoke();
+                        indexTracker.Append(action.Index);
+                        if (action.Restart)
+                        {
+                            indexTracker.Save();
+                            Process.Start("shutdown", "/r /t 0");
+                            Environment.Exit(0);
+                            return;
+                        }
+
+                    }
                 }
+                indexTracker.Save();
             }
-            indexTracker.Save();
+        }
+        catch (Exception ex)
+        {
+            instance.Dispose();
+            throw ex;
         }
         RemoveFromAutoStart();
-        instance.Dispose();
-        return;
     }
 
 
@@ -79,7 +86,7 @@ public class WinImageBuilderAutomation
         return actions;
     }
 
-    private static void AddToAutoStart(string startupPath)
+    public static void AddToAutoStart(string startupPath)
     {
         Dictionary<string, object> mainPs1Autostart = new Dictionary<string, object>
         {
