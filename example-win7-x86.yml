@@ -47,7 +47,7 @@
           - index: 3
             msi:
               path: '\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
-              args: /passive /norestart
+              args: ACTION=INSTALL UILevel=3 REBOOT=ReallySuppress
           - index: 4
             description: win7 sha256 codesign
             restart: true
