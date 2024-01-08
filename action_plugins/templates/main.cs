@@ -3,6 +3,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Management;
 using System.Collections;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -21,60 +22,50 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        string packageJsonPath = "\\package.json"; //templated by Ansible
-        Main2(packageJsonPath);
+        string packageJsonPath = "\\install.json"; //templated by Ansible
+        Main2(packageJsonPath, "E:");
         return;
     }
-    public static void Main2(string packageJsonPath)
+    public static void Main2(string packageJsonPath, string diskDrive)
     {
-        try
+        Directory.SetCurrentDirectory(diskDrive);
+        using (SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP")
+            + "\\ansiblewinbuilder.lock"))
         {
-            using (SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock"))
+            string doneList = Environment.GetEnvironmentVariable("SystemDrive")
+                + "\\ansible-win-setup-done-list.log";
+
+            List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
+
+            actions.Sort(new ActionComparer()); // sort by Index property (priority)
+
+            CheckDuplicateIndexes(actions);
+
+            using (ActionTracker indexTracker = new ActionTracker(doneList))
             {
-                string doneList = " \\ansible-win-setup-done-list.log";
-
-                List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
-
-                actions.Sort(new ActionComparer()); // sort by Index property (priority)
-
-                CheckDuplicateIndexes(actions);
-
-                using (ActionTracker indexTracker = new ActionTracker(doneList))
+                foreach (IAction action in actions)
                 {
-                    foreach (IAction action in actions)
+                    if (indexTracker.IsDone(action.Index))
                     {
-                        if (indexTracker.IsDone(action.Index))
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                action.Invoke();
-                            }
-                            catch (Exception ex)
-                            {
-                                throw new Exception("Action " + action.ToString() + " Error: " + ex.ToString(), ex);
-                            }
-                            indexTracker.Append(action.Index);
-                            if (action.Restart)
-                            {
-                                indexTracker.Save();
-                                Process.Start("shutdown", "/r /t 0");
-                                Environment.Exit(0);
-                                return;
-                            }
-
-                        }
+                        continue;
                     }
-                    indexTracker.Save();
+                    else
+                    {
+                        action.Invoke();
+
+                        indexTracker.Append(action.Index);
+                        if (action.Restart)
+                        {
+                            indexTracker.Save();
+                            Process.Start("shutdown", "/r /t 0");
+                            Environment.Exit(0);
+                            return;
+                        }
+
+                    }
                 }
+                indexTracker.Save();
             }
-        }
-        catch (Exception ex)
-        {
-            throw ex;
         }
         RemoveFromAutoStart();
     }
@@ -180,7 +171,8 @@ public class ActionTracker : IDisposable
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                indexTracker.Add(int.Parse(line), "");
+                if (line.Length > 0)
+                    indexTracker.Add(int.Parse(line), "");
             }
         }
         writer = File.AppendText(path);
@@ -342,20 +334,6 @@ internal abstract class ActionBase : IAction
         }
         return defaultValue;
     }
-    public override string ToString()
-    {
-        var properties = this.GetType().GetProperties();
-        string result = "";
-
-        foreach (var property in properties)
-        {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
-        }
-
-        return result;
-    }
-
-
 }
 
 
@@ -430,14 +408,15 @@ internal class FileAction : ActionBase
                 break;
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -452,11 +431,11 @@ internal class RegistryAction : ActionBase
         Present,
         Absent
     }
-    private string path;
-    private string name;
-    private object data;
-    private RegistryValueKind itemType;
-    private RegistryState state;
+    private string path { get; set; }
+    private string name { get; set; }
+    private object data { get; set; }
+    private RegistryValueKind itemType { get; set; }
+    private RegistryState state { get; set; }
 
     public RegistryAction(Dictionary<string, object> actionData)
     {
@@ -602,14 +581,15 @@ internal class RegistryAction : ActionBase
             }
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -622,11 +602,13 @@ internal class UnzipAction : ActionBase
 {
     private string zipPath;
     private string extractPath;
+    private string current;
 
     public UnzipAction(IDictionary<string, object> actionData)
     {
         try
-        {
+        {   // setcurrentdir does not work for shell32
+            current = Directory.GetCurrentDirectory().Substring(0,2);
             zipPath = (string)actionData["path"];
             extractPath = (string)actionData["dest"];
         }
@@ -640,22 +622,25 @@ internal class UnzipAction : ActionBase
 
     public override void Invoke()
     {
-        if (!File.Exists(zipPath))
-        {
-            throw new FileNotFoundException("Zip file not found: " + zipPath
-                + "Action data: " + this.ToString());
-        }
-
-        if (!Directory.Exists(extractPath))
-        {
-            throw new DirectoryNotFoundException("Destination directory not found: " + extractPath
-                + "Action data: " + this.ToString());
-        }
         Type type = Type.GetTypeFromProgID("Shell.Application");
         Shell32.IShellDispatch shell = (Shell32.IShellDispatch)Activator.CreateInstance(type);
 
         Shell32.Folder source = shell.NameSpace(zipPath);
         Shell32.Folder destination = shell.NameSpace(extractPath);
+
+        if (source == null)
+        {
+            if((source = shell.NameSpace(current + zipPath))== null)
+                throw new FileNotFoundException("Zip file not found: " + zipPath
+                    + " Action data: " + this.ToString());
+        }
+        if (destination == null)
+        {
+            if ((destination = shell.NameSpace(current + extractPath)) == null)
+                throw new DirectoryNotFoundException("Destination directory not found: " + extractPath
+                    + " Action data: " + this.ToString());
+        }
+       
         foreach (object item in source.Items())
         {
             destination.CopyHere(item, 8 | 16 | 512 | 1024);
@@ -664,12 +649,13 @@ internal class UnzipAction : ActionBase
     }
     public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -702,17 +688,18 @@ internal class ExeAction : ActionBase
         ProcessStartInfo startInfo = new ProcessStartInfo();
         startInfo.FileName = packagePath;
         startInfo.Arguments = arguments;
-        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        startInfo.WindowStyle = ProcessWindowStyle.Normal;
         Process.Start(startInfo).WaitForExit();
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -751,6 +738,7 @@ internal class MsuAction : ActionBase
         {
             FileName = wusa,
             Arguments = arguments,
+            UseShellExecute = false,
             WindowStyle = ProcessWindowStyle.Hidden
         };
         Process.Start(startInfo).WaitForExit();
@@ -767,14 +755,15 @@ internal class MsuAction : ActionBase
         }
         while (instanceCount > 0);
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -816,14 +805,15 @@ internal class MsiAction : ActionBase
                  + " Action data: " + this.ToString());
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -897,14 +887,15 @@ class DismAction : ActionBase
             }
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -1004,14 +995,15 @@ internal class CopyAction : ActionBase
             CopyAll(diSourceSubDir, nextTargetSubDir);
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -1058,14 +1050,15 @@ internal class CmdAction : ActionBase
                 + " Action data: " + this.ToString());
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -1143,14 +1136,15 @@ internal class PathAction : ActionBase
                     + " Action data: " + this.ToString());
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;
@@ -1215,14 +1209,15 @@ internal class AutostartAction : ActionBase
             }
         }
     }
-    public override string ToString()
+        public override string ToString()
     {
-        var properties = this.GetType().GetProperties();
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+            BindingFlags.Instance);
         string result = "";
 
-        foreach (var property in properties)
+        foreach (FieldInfo property in properties)
         {
-            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+            result += property.Name + ": " + property.GetValue(this) + " \n";
         }
 
         return result;

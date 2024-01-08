@@ -46,7 +46,7 @@
               args: /quiet
           - index: 3
             msi:
-              path: '\\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
+              path: '\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
               args: /passive /norestart
           - index: 4
             description: win7 sha256 codesign
@@ -63,24 +63,24 @@
             file:
               state: directory
               parents: true
-              path: \Win7-KB3191566-x86
-          - description: unzip Win7-KB3191566-x86 to temp\Win7-KB3191566-x86
+              path: C:\Win7-KB3191566-x86
+          - description: unzip Win7-KB3191566-x86 to Win7-KB3191566-x86
             index: 7
             zip:
               path: '\{{pkg_dir}}\Win7-KB3191566-x86.zip'
-              dest: \Win7-KB3191566-x86
+              dest: C:\Win7-KB3191566-x86
           - description: install Win7-KB3191566-x86
             index: 8
             package:
-              path: \Win7-KB3191566-x86\Win7-KB3191566-x86.msu
+              path: C:\Win7-KB3191566-x86\Win7-KB3191566-x86.msu
               args: /quiet /NoRestart
-          - description: delete temp\Win7-KB3191566-x86
+          - description: delete Win7-KB3191566-x86
             index: 9
             restart: true
             file:
               state: absent
               recurse: true
-              path: \Win7-KB3191566-x86
+              path: C:\Win7-KB3191566-x86
     - name: Create pkg directory
       ansible.builtin.file:
         state: directory

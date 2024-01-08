@@ -1,6 +1,10 @@
-$installJson = "\\{{install_json}}"
-$startupPath = "\\{{entry_point}}";
-$MainCodeFile = "\\{{main_code}}";
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$driveLetter = $scriptPath.Substring(0, 2)
+
+
+$installJson = "$driveLetter\{{install_json}}"
+$startupPath = "$driveLetter\{{entry_point}}";
+$MainCodeFile = "$driveLetter\{{main_code}}";
 $adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
 function Start-App() {
@@ -11,7 +15,7 @@ function Start-App() {
     Import-DotNetAssembly
     [WinImageBuilderAutomation]::EnableAdministratorAccount($adminUserName)
     [WinImageBuilderAutomation]::AddToAutoStart($startupPath)
-    [WinImageBuilderAutomation]::Main2( $installJson)
+    [WinImageBuilderAutomation]::Main2( $installJson, $driveLetter)
     if (-not (Test-RemoteManagementEnabled)) {
         Enable-RemoteManagement
     }
