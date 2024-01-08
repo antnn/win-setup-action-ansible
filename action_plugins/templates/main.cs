@@ -739,7 +739,7 @@ internal class MsuAction : ActionBase
             FileName = wusa,
             Arguments = arguments,
             UseShellExecute = false,
-            WindowStyle = ProcessWindowStyle.Hidden
+            WindowStyle = ProcessWindowStyle.Normal
         };
         Process.Start(startInfo).WaitForExit();
         //aditional waiting on wusa.exe
