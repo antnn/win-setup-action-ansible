@@ -3,7 +3,6 @@
   connection: local
 
   vars:
-    config_drive: 'D:'
     pkg_dir: 'toinstall'
     # Put drivers in {{config_dive}}/$WinpeDriver$ Windows will autoinstall it
     drivers_dir: '$WinpeDriver$'

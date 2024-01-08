@@ -21,7 +21,7 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        string packageJsonPath = "C:\\package.json"; //templated by Ansible
+        string packageJsonPath = "\\package.json"; //templated by Ansible
         Main2(packageJsonPath);
         return;
     }
@@ -29,9 +29,9 @@ public class WinImageBuilderAutomation
     {
         try
         {
-            using (var instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock"))
+            using (SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock"))
             {
-                var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
+                string doneList =" \\ansible-win-setup-done-list.log";
 
                 List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
@@ -170,10 +170,9 @@ public class ActionTracker : IDisposable
     private IDictionary<int, string> indexTracker;
     public ActionTracker(string path)
     {
-        if (!File.Exists(path))
-        {
-            File.Create(path);
-        }
+        FileStream f = File.Open(path, FileMode.Append);
+        f.Close();
+    
         indexTracker = new Dictionary<int, string>();
         using (StreamReader reader = new StreamReader(path))
         {
