@@ -125,7 +125,8 @@ public class WinImageBuilderAutomation
         {
             if (indexes.Contains(action.Index))
             {
-                throw new InvalidOperationException("Duplicate index found, action id: " + action.Index);
+                throw new InvalidOperationException("Duplicate index found, action id: " + action.Index 
+                    + " Action data: " + action.ToString());
             }
 
             indexes.Add(action.Index);
