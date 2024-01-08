@@ -26,8 +26,7 @@
         user_name: "IEUser"
         user_password: "Passw0rd!"
         computer_name: "IEWIN"
-        #config_drive: '{{config_drive}}'
-        #first_logon_cmd: "cmd.exe /c powershell.exe -NoExit -ExecutionPolicy Bypass -File {{config_drive}}:\\start.ps1"
+        #first_logon_cmd: ""
 
         # Gets converted to install.json to use in Windows Powershell
         # files for installation with `name`s should be placed to
@@ -37,27 +36,27 @@
           - index: 1
             description: windows 7 sp1 x86 kb2533552
             msu:
-              path: '{{pkg_dir}}\windows6.1-kb2533552-x86.msu'
+              path: '\{{pkg_dir}}\windows6.1-kb2533552-x86.msu'
               args: /quiet /NoRestart
           - description: windows 7 sp1 x86
             index: 2
             restart: true
             exe: 
-              path: '{{pkg_dir}}\windows6.1-kb976932-x86.exe'
+              path: '\{{pkg_dir}}\windows6.1-kb976932-x86.exe'
               args: /quiet
           - index: 3
             msi:
-              path: '\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
+              path: '\\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
               args: /passive /norestart
           - index: 4
             description: win7 sha256 codesign
             restart: true
             msu:
-              path: '{{pkg_dir}}\windows6.1-kb4474419-v3-x86.msu'
+              path: '\{{pkg_dir}}\windows6.1-kb4474419-v3-x86.msu'
               args: /quiet /NoRestart
           - index: 5
             exe:
-              path: '{{pkg_dir}}\ndp48-x86-x64-allos-enu.exe'
+              path: '\{{pkg_dir}}\ndp48-x86-x64-allos-enu.exe'
               args: /q /norestart
           - description: create dir temp\Win7-KB3191566-x86
             index: 6
@@ -68,7 +67,7 @@
           - description: unzip Win7-KB3191566-x86 to temp\Win7-KB3191566-x86
             index: 7
             zip:
-              path: '{{pkg_dir}}\Win7-KB3191566-x86.zip'
+              path: '\{{pkg_dir}}\Win7-KB3191566-x86.zip'
               dest: \Win7-KB3191566-x86
           - description: install Win7-KB3191566-x86
             index: 8
