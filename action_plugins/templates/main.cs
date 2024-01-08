@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 using Microsoft.Win32;
-using System.Management.Instrumentation;
+
 
 
 
@@ -21,53 +21,59 @@ public class WinImageBuilderAutomation
 {
     public static void Main()
     {
-        string packageJsonPath = "{{install_json}}"; //templated by Ansible
+        string packageJsonPath = "C:\\package.json"; //templated by Ansible
         Main2(packageJsonPath);
         return;
     }
     public static void Main2(string packageJsonPath)
     {
-        SingleInstance instance=null;
         try
         {
-            instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock");
-
-            string doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
-
-            List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
-
-            actions.Sort(new ActionComparer()); // sort by Index property (priority)
-
-            CheckDuplicateIndexes(actions);
-
-            using (ActionTracker indexTracker = new ActionTracker(doneList))
+            using (var instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock"))
             {
-                foreach (IAction action in actions)
-                {
-                    if (indexTracker.IsDone(action.Index))
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        action.Invoke();
-                        indexTracker.Append(action.Index);
-                        if (action.Restart)
-                        {
-                            indexTracker.Save();
-                            Process.Start("shutdown", "/r /t 0");
-                            Environment.Exit(0);
-                            return;
-                        }
+                var doneList = Environment.GetEnvironmentVariable("SystemDrive") + "\\ansible-win-setup-done-list.log";
 
+                List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
+
+                actions.Sort(new ActionComparer()); // sort by Index property (priority)
+
+                CheckDuplicateIndexes(actions);
+
+                using (ActionTracker indexTracker = new ActionTracker(doneList))
+                {
+                    foreach (IAction action in actions)
+                    {
+                        if (indexTracker.IsDone(action.Index))
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                action.Invoke();
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new Exception("Action " + action.ToString() + " Error: " + ex.ToString(), ex);
+                            }
+                            indexTracker.Append(action.Index);
+                            if (action.Restart)
+                            {
+                                indexTracker.Save();
+                                Process.Start("shutdown", "/r /t 0");
+                                Environment.Exit(0);
+                                return;
+                            }
+
+                        }
                     }
+                    indexTracker.Save();
                 }
-                indexTracker.Save();
             }
         }
         catch (Exception ex)
         {
-            instance.Dispose();
             throw ex;
         }
         RemoveFromAutoStart();
@@ -119,7 +125,7 @@ public class WinImageBuilderAutomation
         {
             if (indexes.Contains(action.Index))
             {
-                throw new InvalidOperationException("Duplicate index found");
+                throw new InvalidOperationException("Duplicate index found, action id: " + action.Index);
             }
 
             indexes.Add(action.Index);
@@ -147,13 +153,8 @@ public class WinImageBuilderAutomation
                 {
                     if ((bool)account["Disabled"])
                     {
-                        //Console.WriteLine("Enabling {accountName} "+account);
                         account["Disabled"] = false;
                         account.Put();
-                    }
-                    else
-                    {
-                        //Console.WriteLine(accountName" account is already enabled");
                     }
                 }
             }
@@ -207,121 +208,6 @@ public class ActionTracker : IDisposable
 
 
 
-internal class Tester
-{
-    public static string Test()
-    {
-        var fileAction = new Dictionary<string, object>
-        {
-            { "path", "file/path" },
-            { "content", "file content" },
-            { "state", "Active" }
-        };
-
-        var registryAction = new Dictionary<string, object>
-        {
-            { "path", "registry/path" },
-            { "value", "registry value" },
-            { "state", "Active" },
-            { "force", true },
-            { "type", "String" },
-            { "recurse", true }
-        };
-
-        var unzipAction = new Dictionary<string, object>
-        {
-            { "path", "zip/file/path" },
-            { "dest", "destination/path" }
-        };
-
-        var exeAction = new Dictionary<string, object>
-        {
-            { "path", "exe/file/path" },
-            { "args", "arguments" }
-        };
-
-        var msuAction = new Dictionary<string, object>
-        {
-            { "path", "msu/file/path" },
-            { "args", "msu arguments" }
-        };
-
-        var msiAction = new Dictionary<string, object>
-        {
-            { "path", "msi/file/path" },
-            { "args", "msi arguments" }
-        };
-
-        var dismAction = new Dictionary<string, object>
-        {
-            { "path", "dism/file/path" },
-            { "ignoreCheck", true },
-            { "preventPending", false }
-        };
-
-        var copyAction = new Dictionary<string, object>
-        {
-            { "src", "source/file/path" },
-            { "dest", "destination/file/path" },
-            { "force", true }
-        };
-
-        var pathAction = new Dictionary<string, object>
-        {
-            { "path", "path/to/modify" },
-            { "state", "Present" }
-        };
-
-        var autostartAction = new Dictionary<string, object>
-        {
-            { "file", "start.ps1" },
-            { "interpreter", "powershell.exe -NoExit -ExecutionPolicy Bypass -File" },
-            { "destination", "config/drive/path" },
-            { "args", "" }
-        };
-
-        var json = new Dictionary<string, object>
-        {
-            { "registry", registryAction },
-            { "file", fileAction },
-            { "zip", unzipAction },
-            { "msi", msiAction },
-            { "exe", exeAction },
-            { "msu", msuAction },
-            { "cab", new Dictionary<string, object>
-                {
-                    { "source", "C:\\example\\driver.cab" },
-                    { "destination", "C:\\example\\driver" }
-                }
-            },
-            { "copy", copyAction },
-            { "cmd", new Dictionary<string, object>
-                {
-                    { "command", "echo Hello, World!" }
-                }
-            },
-            { "path", pathAction },
-            { "autostart", new Dictionary<string, object>
-                {
-                    { "name", "ExampleApp" },
-                    { "path", "C:\\example\\app.exe" }
-                }
-            },
-            { "unknown", new Dictionary<string, object>
-                {
-                    { "data", "This should trigger an exception" }
-                }
-            }
-        };
-
-        var serializer = new JavaScriptSerializer();
-        var jsonString = serializer.Serialize(json);
-        return jsonString;
-    }
-}
-
-
-
 
 internal class ActionComparer : IComparer<ActionBase>
 {
@@ -342,11 +228,12 @@ internal class CustomDispatchConverter : JavaScriptConverter
         object indexValue;
         if (!dictionary.TryGetValue("index", out indexValue))
         {
-            throw new ArgumentException("The 'index' field is missing.");
+            throw new ArgumentException("The 'index' field is missing. Action data: " + dictionary.ToString());
         }
         if (!(indexValue is int))
         {
-            throw new ArgumentException("The 'index' field is invalid: " + indexValue.ToString());
+            throw new ArgumentException("The 'index' field is invalid: " + indexValue.ToString() 
+                + " Action data: " + dictionary.ToString());
         }
         IAction action = CreateActionFromDictionary(dictionary);
         action.Index = (int)indexValue;
@@ -409,7 +296,7 @@ internal class CustomDispatchConverter : JavaScriptConverter
             return new AutostartAction((Dictionary<string, object>)actionData);
         }
 
-        throw new Exception("Unknown action type");
+        throw new Exception("Unknown action type. Action data: " + dictionary.ToString());
     }
 
 
@@ -476,16 +363,17 @@ internal class FileAction : ActionBase
     private State state;
 
 
-    public FileAction(IDictionary<string, object> action)
+    public FileAction(IDictionary<string, object> actionData)
     {
         try
         {
-            path = (string)action["path"];
-            state = (State)Enum.Parse(typeof(State), (string)action["state"], true);
+            path = (string)actionData["path"];
+            state = (State)Enum.Parse(typeof(State), (string)actionData["state"], true);
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("FileAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("FileAction: Invalid argument or missing key. Action data: "
+                + actionData.ToString(), ex);
         }
     }
     public override void Invoke()
@@ -529,7 +417,7 @@ internal class FileAction : ActionBase
                 }
                 else
                 {
-                    throw new IOException("FileAction: Path does not exist");
+                    throw new IOException("FileAction: Path does not exist. Action data: " + this.ToString());
                 }
                 break;
         }
@@ -549,27 +437,27 @@ internal class RegistryAction : ActionBase
     private RegistryValueKind itemType;
     private RegistryState state;
 
-    public RegistryAction(Dictionary<string, object> item)
+    public RegistryAction(Dictionary<string, object> actionData)
     {
         try
         {
-            path = TryGetValue<string>(item, "name", null);
+            path = TryGetValue<string>(actionData, "name", null);
         }
         catch
         {
-            throw new ArgumentException("RegistryAction: path is reqiured");
+            throw new ArgumentException("RegistryAction: path is reqiured. Action data: " + actionData.ToString());
         }
-        name = TryGetValue(item, "name", "Default");
+        name = TryGetValue(actionData, "name", "Default");
 
         data = null;
         object dataValue;
-        if (item.TryGetValue("data", out dataValue))
+        if (actionData.TryGetValue("data", out dataValue))
         {
             data = dataValue;
         }
 
-        itemType = ParseRegistryItemType(TryGetValue(item, "type", "String"));
-        state = ParseRegistryState((string)item["state"]);
+        itemType = ParseRegistryItemType(TryGetValue(actionData, "type", "String"));
+        state = ParseRegistryState((string)actionData["state"]);
     }
     private static RegistryState ParseRegistryState(string state)
     {
@@ -580,7 +468,7 @@ internal class RegistryAction : ActionBase
         }
         catch (ArgumentException)
         {
-            throw new ArgumentException("RegestryAction: Invalid registry state: " + state);
+            throw new ArgumentException("RegistryAction: Invalid registry state: " + state);
         }
         return parsedState;
     }
@@ -610,7 +498,8 @@ internal class RegistryAction : ActionBase
                 DeleteRegistryKeyOrValue();
                 break;
             default:
-                throw new InvalidOperationException("RegistryAction: Unsupported registry state: " + state);
+                throw new InvalidOperationException("RegistryAction: Unsupported registry state: "
+                    + state + "Action data: " + this.ToString() );
         }
     }
     private RegistryKey OpenBaseKey(string path)
@@ -618,7 +507,7 @@ internal class RegistryAction : ActionBase
         int hiveEndIndex = path.IndexOf(':');
         if (hiveEndIndex < 0)
         {
-            throw new ArgumentException("RegistryAction: Invalid registry key path");
+            throw new ArgumentException("RegistryAction: Invalid registry key path Action data: " + this.ToString());
         }
 
         string hive = path.Substring(0, hiveEndIndex);
@@ -644,7 +533,8 @@ internal class RegistryAction : ActionBase
                 baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.Users, null);
                 break;
             default:
-                throw new ArgumentException("RegistryAction: Invalid registry hive");
+                throw new ArgumentException("RegistryAction: Invalid registry hive: " 
+                    + hive + "Action data: " + this.ToString());
         }
 
         return baseKey;
@@ -658,7 +548,8 @@ internal class RegistryAction : ActionBase
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path);
+                    throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path 
+                        + "Action data: " + this.ToString());
                 }
                 key.SetValue(name, data);
             }
@@ -675,7 +566,8 @@ internal class RegistryAction : ActionBase
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException("RegistryAction: Failed to open registry key: " + path);
+                    throw new InvalidOperationException("RegistryAction: Failed to open registry key: " + path
+                        + "Action data: " + this.ToString());
                 }
 
                 if (name == "Default")
@@ -697,16 +589,17 @@ internal class UnzipAction : ActionBase
     private string zipPath;
     private string extractPath;
 
-    public UnzipAction(IDictionary<string, object> action)
+    public UnzipAction(IDictionary<string, object> actionData)
     {
         try
         {
-            zipPath = (string)action["path"];
-            extractPath = (string)action["dest"];
+            zipPath = (string)actionData["path"];
+            extractPath = (string)actionData["dest"];
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("ZipAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("ZipAction: Invalid argument or missing key" 
+                + "Action data: " + actionData.ToString(), ex);
         }
     }
 
@@ -715,12 +608,14 @@ internal class UnzipAction : ActionBase
     {
         if (!File.Exists(zipPath))
         {
-            throw new FileNotFoundException("Zip file not found");
+            throw new FileNotFoundException("Zip file not found: " + zipPath 
+                + "Action data: " + this.ToString());
         }
 
         if (!Directory.Exists(extractPath))
         {
-            throw new DirectoryNotFoundException("Destination directory not found");
+            throw new DirectoryNotFoundException("Destination directory not found: " + extractPath 
+                + "Action data: " + this.ToString());
         }
         Type type = Type.GetTypeFromProgID("Shell.Application");
         Shell32.IShellDispatch shell = (Shell32.IShellDispatch)Activator.CreateInstance(type);
@@ -740,23 +635,23 @@ internal class ExeAction : ActionBase
     protected string packagePath;
     protected string arguments;
 
-    public ExeAction(IDictionary<string, object> action)
+    public ExeAction(IDictionary<string, object> actionData)
     {
         try
         {
-            packagePath = (string)action["path"];
-            arguments = (string)action["args"];
+            packagePath = (string)actionData["path"];
+            arguments = (string)actionData["args"];
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("ExeAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("ExeAction: Invalid argument or missing key. Action data: "
+                + actionData.ToString(), ex);
         }
     }
 
 
     public override void Invoke()
     {
-        Console.WriteLine("Installing: " + packagePath);
         ProcessStartInfo startInfo = new ProcessStartInfo();
         startInfo.FileName = packagePath;
         startInfo.Arguments = arguments;
@@ -770,16 +665,17 @@ internal class MsuAction : ActionBase
     private const string wusa = "wusa.exe";
     private string arguments;
     private string package;
-    public MsuAction(IDictionary<string, object> action)
+    public MsuAction(IDictionary<string, object> actionData)
     {
         try
         {
-            package = (string)action["path"];
-            arguments = package + " " + (string)action["args"];
+            package = (string)actionData["path"];
+            arguments = package + " " + (string)actionData["args"];
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("MsuAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("MsuAction: Invalid argument or missing key. Action data: " 
+                + actionData.ToString(), ex);
         }
     }
 
@@ -788,9 +684,9 @@ internal class MsuAction : ActionBase
     {
         if (!File.Exists(package))
         {
-            throw new ArgumentException("Msu file does not exists");
+            throw new ArgumentException("Msu file does not exists: " + package
+                + "Action data: " + this.ToString());
         }
-        Console.WriteLine("Installing: " + arguments);
         ProcessStartInfo startInfo = new ProcessStartInfo
         {
             FileName = wusa,
@@ -822,29 +718,29 @@ internal class MsiAction : ActionBase
     private string packagePath;
     private string arguments;
 
-    public MsiAction(IDictionary<string, object> action)
+    public MsiAction(IDictionary<string, object> actionData)
     {
         try
         {
-            packagePath = (string)action["path"];
-            arguments = (string)action["args"];
+            packagePath = (string)actionData["path"];
+            arguments = (string)actionData["args"];
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("MsiAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("MsiAction: Invalid argument or missing key. "
+                +"Action data: " + actionData.ToString(), ex);
         }
     }
 
     public override void Invoke()
     {
-        Console.WriteLine("Installing: " + packagePath);
-
-        System.Text.StringBuilder sb = new System.Text.StringBuilder(arguments + " ACTION=ADMIN");
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(arguments);
         //args format Property=Setting Property=Setting.
         uint result = MsiInstallProduct(packagePath, sb.ToString());
         if (result != 0)
         {
-            throw new Exception("MsiInstallProduct failed. Error: " + result);
+            throw new Exception("MsiInstallProduct failed. Error: " + result 
+                 +" Action data: " + this.ToString());
         }
     }
 }
@@ -869,19 +765,20 @@ class DismAction : ActionBase
     [return: MarshalAs(UnmanagedType.Error)]
     public static extern int DismCloseSession(IntPtr session);
 
-    public DismAction(IDictionary<string, object> action)
+    public DismAction(IDictionary<string, object> actionData)
     {
         try
         {
-            packagePath = TryGetValue<string>(action, "path", null);
+            packagePath = TryGetValue<string>(actionData, "path", null);
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key.", ex);
+            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key. " +
+                "Action data: " + actionData.ToString(), ex);
         }
 
-        ignoreCheck = TryGetValue(action, "ignorecheck", false);
-        preventPending = TryGetValue(action, "preventpending", false);
+        ignoreCheck = TryGetValue(actionData, "ignorecheck", false);
+        preventPending = TryGetValue(actionData, "preventpending", false);
 
     }
 
@@ -891,7 +788,8 @@ class DismAction : ActionBase
         int result = DismOpenSession(DISM_ONLINE_IMAGE, null, null, out session);
         if (result != 0)
         {
-            throw new Exception("DismAction: Failed to open DISM session for the online image.");
+            throw new Exception("DismAction: Failed to open DISM session for the online image. "
+                + "Action data: " + this.ToString());
         }
 
         try
@@ -899,7 +797,8 @@ class DismAction : ActionBase
             result = DismAddPackage(session, packagePath, ignoreCheck, preventPending, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
             if (result != 0)
             {
-                throw new Exception("DismAction: Failed to add package to the online image.");
+                throw new Exception("DismAction: Failed to add package to the online image. "
+                     + "Action data: " + this.ToString());
             }
         }
         finally
@@ -907,7 +806,8 @@ class DismAction : ActionBase
             result = DismCloseSession(session);
             if (result != 0)
             {
-                throw new Exception("DismAction: Failed to close DISM session for the online image.");
+                throw new Exception("DismAction: Failed to close DISM session for the online image. " 
+                    + "Action data: " + this.ToString());
             }
         }
     }
@@ -920,27 +820,28 @@ internal class CopyAction : ActionBase
     private bool force;
     private string content;
 
-    public CopyAction(IDictionary<string, object> action)
+    public CopyAction(IDictionary<string, object> actionData)
     {
         try
         {
             object _src;
-            if (action.TryGetValue("content", out _src))
+            if (actionData.TryGetValue("content", out _src))
             {
                 source = ExpandString((string)_src);
             }
             else
             {
-                content = (string)action["content"];
+                content = (string)actionData["content"];
             }
-            destination = ExpandString((string)action["dest"]);
+            destination = ExpandString((string)actionData["dest"]);
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("CopyAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("CopyAction: Invalid argument or missing key"
+                + "Action data: " + actionData.ToString(), ex);
         }
 
-        force = TryGetValue(action, "force", false);
+        force = TryGetValue(actionData, "force", false);
     }
 
     public override void Invoke()
@@ -971,12 +872,14 @@ internal class CopyAction : ActionBase
             }
             else
             {
-                throw new ArgumentException("Source path does not exists");
+                throw new ArgumentException("Source path does not exists: " + source
+                    + " Action data: " + this.ToString());
             }
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException("CopyAction: Exception occurred", ex);
+            throw new InvalidOperationException("CopyAction: Exception occurred "
+                + " Action data: " + this.ToString(), ex);
         }
     }
     private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
@@ -1008,15 +911,16 @@ internal class CmdAction : ActionBase
 {
     private string command;
 
-    public CmdAction(IDictionary<string, object> action)
+    public CmdAction(IDictionary<string, object> actionData)
     {
         try
         {
-            command = ExpandString((string)action["cmd"]);
+            command = ExpandString((string)actionData["cmd"]);
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("CmdAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("CmdAction: Invalid argument or missing key"
+                + " Action data: " + actionData.ToString(), ex);
         }
     }
 
@@ -1030,7 +934,7 @@ internal class CmdAction : ActionBase
             {
                 FileName = "cmd.exe",
                 Arguments = "/C " + command,
-                WindowStyle = ProcessWindowStyle.Hidden
+                WindowStyle = ProcessWindowStyle.Normal
             };
             Process process = Process.Start(startInfo);
             process.WaitForExit();
@@ -1038,7 +942,8 @@ internal class CmdAction : ActionBase
         catch (Exception ex)
         {
             // Handle any exceptions that may occur during the command execution
-            Console.WriteLine("CmdAction: An error occurred while running the command: " + ex.Message);
+            Console.WriteLine("CmdAction: An error occurred while running the command: " + ex.Message
+                + " Action data: " + this.ToString());
         }
     }
 }
@@ -1057,17 +962,18 @@ internal class PathAction : ActionBase
         Absent
     }
 
-    public PathAction(IDictionary<string, object> action)
+    public PathAction(IDictionary<string, object> actionData)
     {
         string stateStr;
         try
         {
-            pathToModify = ExpandString((string)action["path"]);
-            stateStr = (string)action["state"];
+            pathToModify = ExpandString((string)actionData["path"]);
+            stateStr = (string)actionData["state"];
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("PathAction: Invalid argument or missing key", ex);
+            throw new ArgumentException("PathAction: Invalid argument or missing key"
+                + " Action data: " + actionData.ToString(), ex);
         }
 
         try
@@ -1077,7 +983,8 @@ internal class PathAction : ActionBase
         catch (ArgumentException)
         {
             // Handle the case where the string does not represent a valid state
-            throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported.");
+            throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported"
+                + " Action data: " + actionData.ToString());
         }
 
     }
@@ -1107,7 +1014,8 @@ internal class PathAction : ActionBase
                 }
                 break;
             default:
-                throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported.");
+                throw new ArgumentException("PathAction: Invalid state value. Only 'Present' or 'Absent' are supported."
+                    + " Action data: " + this.ToString());
         }
     }
 }
@@ -1127,19 +1035,20 @@ internal class AutostartAction : ActionBase
         Absent
     }
 
-    public AutostartAction(IDictionary<string, object> item)
+    public AutostartAction(IDictionary<string, object> actionData)
     {
         try
         {
-            keyName = ExpandString(TryGetValue<string>(item, "keyname", null));
-            state = (State)Enum.Parse(typeof(State), TryGetValue<string>(item, "state", null), true);
-            interpreter = ExpandString(TryGetValue(item, "interpreter", ""));
-            target = ExpandString(TryGetValue(item, "target", ""));
-            args = ExpandString(TryGetValue(item, "args", ""));
+            keyName = ExpandString(TryGetValue<string>(actionData, "keyname", null));
+            state = (State)Enum.Parse(typeof(State), TryGetValue<string>(actionData, "state", null), true);
+            interpreter = ExpandString(TryGetValue(actionData, "interpreter", ""));
+            target = ExpandString(TryGetValue(actionData, "target", ""));
+            args = ExpandString(TryGetValue(actionData, "args", ""));
         }
         catch
         {
-            throw new ArgumentException("AutostartAction: Missing or invalid key");
+            throw new ArgumentException("AutostartAction: Missing or invalid key."
+                + " Action data: " + actionData.ToString());
         }
     }
 
@@ -1164,7 +1073,8 @@ internal class AutostartAction : ActionBase
             }
             else
             {
-                throw new Exception("Unable to open registry key for modification.");
+                throw new Exception("Unable to open registry key for modification."
+                    + " Action data: " + this.ToString());
             }
         }
     }
@@ -1181,7 +1091,7 @@ internal class SingleInstance : IDisposable
         this.path = path;
         try
         {
-            file = File.Open(path, FileMode.CreateNew);
+            file = File.Open(path, FileMode.Append);
         }
         catch (IOException ex)
         {

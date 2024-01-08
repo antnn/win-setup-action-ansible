@@ -22,7 +22,6 @@ default_first_logon_cmd = (
     "cmd.exe /C for %%D in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) do @(if exist %%D:\\%s ( %s %%D:\\%s & goto :break) else (echo Not found)) & :break"
     % (default_entry_point, default_first_logon_cmd, default_entry_point)
 )
-
 default_install_json_path = "install.json"
 
 

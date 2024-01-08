@@ -3,7 +3,6 @@
 - hosts: 127.0.0.1
   connection: local
   vars:
-    config_drive: 'D:'
     pkg_dir: 'toinstall'
     # Put drivers in {{config_dive}}/$WinpeDriver$ Windows will autoinstall it
     drivers_dir: '$WinpeDriver$'
@@ -22,7 +21,7 @@
         # destination (root dir) for config files, generate ISO file in next tasks
         dest: '{{ iso_temp_root_build_dir.path }}/iso'
         # Change credentials after ansible installation if needed
-        admin_name: '\Administrator'
+        admin_name: 'Administrator'
         admin_password: "Passw0rd!"
         user_name: "IEUser"
         user_password: "Passw0rd!"
@@ -38,43 +37,43 @@
           - index: 1
             description: windows 7 sp1 x86 kb2533552
             msu:
-              path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb2533552-x86.msu'
+              path: '{{pkg_dir}}\windows6.1-kb2533552-x86.msu'
               args: /quiet /NoRestart
           - description: windows 7 sp1 x86
             index: 2
             restart: true
             exe: 
-              path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb976932-x86.exe'
+              path: '{{pkg_dir}}\windows6.1-kb976932-x86.exe'
               args: /quiet
           - index: 3
             msi:
-              path: '{{config_drive}}\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
+              path: '\{{pkg_dir}}\OpenSSH-Win32-v8.9.1.0.msi'
               args: /passive /norestart
           - index: 4
             description: win7 sha256 codesign
             restart: true
             msu:
-              path: '{{config_drive}}\{{pkg_dir}}\windows6.1-kb4474419-v3-x86.msu'
+              path: '{{pkg_dir}}\windows6.1-kb4474419-v3-x86.msu'
               args: /quiet /NoRestart
           - index: 5
             exe:
-              path: '{{config_drive}}\{{pkg_dir}}\ndp48-x86-x64-allos-enu.exe'
+              path: '{{pkg_dir}}\ndp48-x86-x64-allos-enu.exe'
               args: /q /norestart
           - description: create dir temp\Win7-KB3191566-x86
             index: 6
             file:
               state: directory
               parents: true
-              path: $env:temp\Win7-KB3191566-x86
+              path: \Win7-KB3191566-x86
           - description: unzip Win7-KB3191566-x86 to temp\Win7-KB3191566-x86
             index: 7
             zip:
-              path: '{{config_drive}}\{{pkg_dir}}\Win7-KB3191566-x86.zip'
-              dest: $env:temp\Win7-KB3191566-x86
+              path: '{{pkg_dir}}\Win7-KB3191566-x86.zip'
+              dest: \Win7-KB3191566-x86
           - description: install Win7-KB3191566-x86
             index: 8
             package:
-              path: $env:temp\Win7-KB3191566-x86\Win7-KB3191566-x86.msu
+              path: \Win7-KB3191566-x86\Win7-KB3191566-x86.msu
               args: /quiet /NoRestart
           - description: delete temp\Win7-KB3191566-x86
             index: 9
@@ -82,7 +81,7 @@
             file:
               state: absent
               recurse: true
-              path: $env:temp\Win7-KB3191566-x86
+              path: \Win7-KB3191566-x86
     - name: Create pkg directory
       ansible.builtin.file:
         state: directory
