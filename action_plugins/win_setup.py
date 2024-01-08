@@ -37,8 +37,7 @@ class ActionModule(ActionBase):
             "user_password",
             "install",
             "computer_name",
-            "first_logon_cmd",
-            "config_drive",
+            "first_logon_cmd"
         )
     )
 
