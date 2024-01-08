@@ -499,7 +499,7 @@ internal class RegistryAction : ActionBase
                 break;
             default:
                 throw new InvalidOperationException("RegistryAction: Unsupported registry state: "
-                    + state + "Action data: " + this.ToString());
+                    + state + " Action data: " + this.ToString());
         }
     }
     private RegistryKey OpenBaseKey(string path)
@@ -534,7 +534,7 @@ internal class RegistryAction : ActionBase
                 break;
             default:
                 throw new ArgumentException("RegistryAction: Invalid registry hive: "
-                    + hive + "Action data: " + this.ToString());
+                    + hive + " Action data: " + this.ToString());
         }
 
         return baseKey;
@@ -549,7 +549,7 @@ internal class RegistryAction : ActionBase
                 if (key == null)
                 {
                     throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path
-                        + "Action data: " + this.ToString());
+                        + " Action data: " + this.ToString());
                 }
                 key.SetValue(name, data);
             }
@@ -567,7 +567,7 @@ internal class RegistryAction : ActionBase
                 if (key == null)
                 {
                     throw new InvalidOperationException("RegistryAction: Failed to open registry key: " + path
-                        + "Action data: " + this.ToString());
+                        + " Action data: " + this.ToString());
                 }
 
                 if (name == "Default")
@@ -615,7 +615,7 @@ internal class UnzipAction : ActionBase
         catch (Exception ex)
         {
             throw new ArgumentException("ZipAction: Invalid argument or missing key"
-                + "Action data: " + actionData.ToString(), ex);
+                + " Action data: " + actionData.ToString(), ex);
         }
     }
 
@@ -790,7 +790,7 @@ internal class MsiAction : ActionBase
         catch (Exception ex)
         {
             throw new ArgumentException("MsiAction: Invalid argument or missing key. "
-                + "Action data: " + actionData.ToString(), ex);
+                + " Action data: " + actionData.ToString(), ex);
         }
     }
 
@@ -849,8 +849,8 @@ class DismAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key. " +
-                "Action data: " + actionData.ToString(), ex);
+            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key. " 
+            + " Action data: " + actionData.ToString(), ex);
         }
 
         ignoreCheck = TryGetValue(actionData, "ignorecheck", false);
@@ -865,7 +865,7 @@ class DismAction : ActionBase
         if (result != 0)
         {
             throw new Exception("DismAction: Failed to open DISM session for the online image. "
-                + "Action data: " + this.ToString());
+                + " Action data: " + this.ToString());
         }
 
         try
@@ -874,7 +874,7 @@ class DismAction : ActionBase
             if (result != 0)
             {
                 throw new Exception("DismAction: Failed to add package to the online image. "
-                     + "Action data: " + this.ToString());
+                     + " Action data: " + this.ToString());
             }
         }
         finally
@@ -883,7 +883,7 @@ class DismAction : ActionBase
             if (result != 0)
             {
                 throw new Exception("DismAction: Failed to close DISM session for the online image. "
-                    + "Action data: " + this.ToString());
+                    + " Action data: " + this.ToString());
             }
         }
     }
@@ -928,7 +928,7 @@ internal class CopyAction : ActionBase
         catch (Exception ex)
         {
             throw new ArgumentException("CopyAction: Invalid argument or missing key"
-                + "Action data: " + actionData.ToString(), ex);
+                + " Action data: " + actionData.ToString(), ex);
         }
 
         force = TryGetValue(actionData, "force", false);
