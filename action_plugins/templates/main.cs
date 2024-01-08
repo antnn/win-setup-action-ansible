@@ -31,7 +31,7 @@ public class WinImageBuilderAutomation
         {
             using (SingleInstance instance = new SingleInstance(Environment.GetEnvironmentVariable("TEMP") + "\\ansiblewinbuilder.lock"))
             {
-                string doneList =" \\ansible-win-setup-done-list.log";
+                string doneList = " \\ansible-win-setup-done-list.log";
 
                 List<ActionBase> actions = LoadAndDeserialize(packageJsonPath);
 
@@ -125,7 +125,7 @@ public class WinImageBuilderAutomation
         {
             if (indexes.Contains(action.Index))
             {
-                throw new InvalidOperationException("Duplicate index found, action id: " + action.Index 
+                throw new InvalidOperationException("Duplicate index found, action id: " + action.Index
                     + " Action data: " + action.ToString());
             }
 
@@ -173,7 +173,7 @@ public class ActionTracker : IDisposable
     {
         FileStream f = File.Open(path, FileMode.Append);
         f.Close();
-    
+
         indexTracker = new Dictionary<int, string>();
         using (StreamReader reader = new StreamReader(path))
         {
@@ -232,7 +232,7 @@ internal class CustomDispatchConverter : JavaScriptConverter
         }
         if (!(indexValue is int))
         {
-            throw new ArgumentException("The 'index' field is invalid: " + indexValue.ToString() 
+            throw new ArgumentException("The 'index' field is invalid: " + indexValue.ToString()
                 + " Action data: " + dictionary.ToString());
         }
         IAction action = CreateActionFromDictionary(dictionary);
@@ -327,11 +327,6 @@ internal abstract class ActionBase : IAction
     public int Index { get; set; }
     public bool Restart { get; set; }
 
-    // Assuming ExpandString is a method that expands environment variables or similar
-    public static string ExpandString(string input)
-    {
-        return Environment.ExpandEnvironmentVariables(input);
-    }
 
     public abstract void Invoke();
     protected T TryGetValue<T>(IDictionary<string, object> item, string key, T defaultValue)
@@ -347,6 +342,19 @@ internal abstract class ActionBase : IAction
         }
         return defaultValue;
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 
 }
 
@@ -422,6 +430,19 @@ internal class FileAction : ActionBase
                 break;
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class RegistryAction : ActionBase
@@ -499,7 +520,7 @@ internal class RegistryAction : ActionBase
                 break;
             default:
                 throw new InvalidOperationException("RegistryAction: Unsupported registry state: "
-                    + state + "Action data: " + this.ToString() );
+                    + state + "Action data: " + this.ToString());
         }
     }
     private RegistryKey OpenBaseKey(string path)
@@ -533,7 +554,7 @@ internal class RegistryAction : ActionBase
                 baseKey = RegistryKey.OpenRemoteBaseKey(RegistryHive.Users, null);
                 break;
             default:
-                throw new ArgumentException("RegistryAction: Invalid registry hive: " 
+                throw new ArgumentException("RegistryAction: Invalid registry hive: "
                     + hive + "Action data: " + this.ToString());
         }
 
@@ -548,7 +569,7 @@ internal class RegistryAction : ActionBase
             {
                 if (key == null)
                 {
-                    throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path 
+                    throw new InvalidOperationException("RegistryAction: Failed to create or open registry key: " + path
                         + "Action data: " + this.ToString());
                 }
                 key.SetValue(name, data);
@@ -581,6 +602,19 @@ internal class RegistryAction : ActionBase
             }
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 
@@ -598,7 +632,7 @@ internal class UnzipAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("ZipAction: Invalid argument or missing key" 
+            throw new ArgumentException("ZipAction: Invalid argument or missing key"
                 + "Action data: " + actionData.ToString(), ex);
         }
     }
@@ -608,13 +642,13 @@ internal class UnzipAction : ActionBase
     {
         if (!File.Exists(zipPath))
         {
-            throw new FileNotFoundException("Zip file not found: " + zipPath 
+            throw new FileNotFoundException("Zip file not found: " + zipPath
                 + "Action data: " + this.ToString());
         }
 
         if (!Directory.Exists(extractPath))
         {
-            throw new DirectoryNotFoundException("Destination directory not found: " + extractPath 
+            throw new DirectoryNotFoundException("Destination directory not found: " + extractPath
                 + "Action data: " + this.ToString());
         }
         Type type = Type.GetTypeFromProgID("Shell.Application");
@@ -628,6 +662,19 @@ internal class UnzipAction : ActionBase
         }
 
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class ExeAction : ActionBase
@@ -658,6 +705,19 @@ internal class ExeAction : ActionBase
         startInfo.WindowStyle = ProcessWindowStyle.Hidden;
         Process.Start(startInfo).WaitForExit();
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class MsuAction : ActionBase
@@ -674,7 +734,7 @@ internal class MsuAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("MsuAction: Invalid argument or missing key. Action data: " 
+            throw new ArgumentException("MsuAction: Invalid argument or missing key. Action data: "
                 + actionData.ToString(), ex);
         }
     }
@@ -685,7 +745,7 @@ internal class MsuAction : ActionBase
         if (!File.Exists(package))
         {
             throw new ArgumentException("Msu file does not exists: " + package
-                + "Action data: " + this.ToString());
+                + " Action data: " + this.ToString());
         }
         ProcessStartInfo startInfo = new ProcessStartInfo
         {
@@ -707,6 +767,19 @@ internal class MsuAction : ActionBase
         }
         while (instanceCount > 0);
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class MsiAction : ActionBase
@@ -728,7 +801,7 @@ internal class MsiAction : ActionBase
         catch (Exception ex)
         {
             throw new ArgumentException("MsiAction: Invalid argument or missing key. "
-                +"Action data: " + actionData.ToString(), ex);
+                + "Action data: " + actionData.ToString(), ex);
         }
     }
 
@@ -739,10 +812,23 @@ internal class MsiAction : ActionBase
         uint result = MsiInstallProduct(packagePath, sb.ToString());
         if (result != 0)
         {
-            throw new Exception("MsiInstallProduct failed. Error: " + result 
-                 +" Action data: " + this.ToString());
+            throw new Exception("MsiInstallProduct failed. Error: " + result
+                 + " Action data: " + this.ToString());
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 class DismAction : ActionBase
 {
@@ -806,11 +892,24 @@ class DismAction : ActionBase
             result = DismCloseSession(session);
             if (result != 0)
             {
-                throw new Exception("DismAction: Failed to close DISM session for the online image. " 
+                throw new Exception("DismAction: Failed to close DISM session for the online image. "
                     + "Action data: " + this.ToString());
             }
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class CopyAction : ActionBase
@@ -827,13 +926,13 @@ internal class CopyAction : ActionBase
             object _src;
             if (actionData.TryGetValue("content", out _src))
             {
-                source = ExpandString((string)_src);
+                source = (string)_src;
             }
             else
             {
                 content = (string)actionData["content"];
             }
-            destination = ExpandString((string)actionData["dest"]);
+            destination = (string)actionData["dest"];
         }
         catch (Exception ex)
         {
@@ -905,6 +1004,19 @@ internal class CopyAction : ActionBase
             CopyAll(diSourceSubDir, nextTargetSubDir);
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 internal class CmdAction : ActionBase
@@ -915,7 +1027,7 @@ internal class CmdAction : ActionBase
     {
         try
         {
-            command = ExpandString((string)actionData["cmd"]);
+            command = (string)actionData["cmd"];
         }
         catch (Exception ex)
         {
@@ -946,6 +1058,19 @@ internal class CmdAction : ActionBase
                 + " Action data: " + this.ToString());
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 
@@ -967,7 +1092,7 @@ internal class PathAction : ActionBase
         string stateStr;
         try
         {
-            pathToModify = ExpandString((string)actionData["path"]);
+            pathToModify = (string)actionData["path"];
             stateStr = (string)actionData["state"];
         }
         catch (Exception ex)
@@ -1018,6 +1143,18 @@ internal class PathAction : ActionBase
                     + " Action data: " + this.ToString());
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
 }
 
 
@@ -1039,11 +1176,11 @@ internal class AutostartAction : ActionBase
     {
         try
         {
-            keyName = ExpandString(TryGetValue<string>(actionData, "keyname", null));
+            keyName = TryGetValue<string>(actionData, "keyname", null);
             state = (State)Enum.Parse(typeof(State), TryGetValue<string>(actionData, "state", null), true);
-            interpreter = ExpandString(TryGetValue(actionData, "interpreter", ""));
-            target = ExpandString(TryGetValue(actionData, "target", ""));
-            args = ExpandString(TryGetValue(actionData, "args", ""));
+            interpreter = TryGetValue(actionData, "iterpreter", "");
+            target = TryGetValue(actionData, "trget", "");
+            args = TryGetValue(actionData, "ags", "");
         }
         catch
         {
@@ -1078,6 +1215,19 @@ internal class AutostartAction : ActionBase
             }
         }
     }
+    public override string ToString()
+    {
+        var properties = this.GetType().GetProperties();
+        string result = "";
+
+        foreach (var property in properties)
+        {
+            result += property.Name + ": " + property.GetValue(this, null) + "\n";
+        }
+
+        return result;
+    }
+
 }
 
 
