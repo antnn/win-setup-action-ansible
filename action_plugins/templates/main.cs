@@ -16,7 +16,7 @@ using Microsoft.Win32;
 /*
 * NOTE: Win7 SP1 installation forces reboot disregarding "/norestart" option
 * https://social.technet.microsoft.com/Forums/ie/en-US/c4b7c3fc-037c-4e45-ab11-f6f64837521a/how-to-disable-reboot-after-sp1-installation-distribution-as-exe-via-sccm?forum=w7itproinstall
-* It should continue installing after reboot skiping installed packages
+* It should continue installing after reboot skipping installed packages
 */
 public class WinImageBuilderAutomation
 {
@@ -445,7 +445,7 @@ internal class RegistryAction : ActionBase
         }
         catch
         {
-            throw new ArgumentException("RegistryAction: path is reqiured. Action data: " + actionData.ToString());
+            throw new ArgumentException("RegistryAction: path is required. Action data: " + actionData.ToString());
         }
         name = TryGetValue(actionData, "name", "Default");
 
@@ -727,7 +727,7 @@ internal class MsuAction : ActionBase
     }
 
     public override void Invoke()
-    // TODO think about wusa errors, because it may dettach
+    // TODO think about wusa errors, because it may detach
     {
         if (!File.Exists(package))
         {
@@ -742,7 +742,7 @@ internal class MsuAction : ActionBase
             WindowStyle = ProcessWindowStyle.Normal
         };
         Process.Start(startInfo).WaitForExit();
-        //aditional waiting on wusa.exe
+        //additional waiting on wusa.exe
         WaitProcess(wusa);
     }
     private void WaitProcess(string name)
