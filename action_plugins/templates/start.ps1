@@ -82,11 +82,12 @@ function Enable-RemoteManagement {
 
 try {
     Start-App
-} catch {
+} catch  {
     # Log the error to the error log file
     $errorMessage = $_.Exception.Message
+    $fullErrorMessage = $_.Exception.ToString()
     $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "$errorTime - Error: $errorMessage, ${$_.Exception.toString()}"
+    $logEntry = "$errorTime - Error: $errorMessage, $fullErrorMessage"
     Add-Content -Path "C:\ansible-action-setup.log" -Value $logEntry
 
     # Optionally, rethrow the error if you want it to be visible in the console
