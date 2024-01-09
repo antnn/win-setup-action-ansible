@@ -19,6 +19,7 @@ function Start-App() {
     if (-not (Test-RemoteManagementEnabled)) {
         Enable-RemoteManagement
     }
+    exit
 }
 
 function Start-ElevatedProcess() {
@@ -81,7 +82,7 @@ function Enable-RemoteManagement {
 
 try {
     Start-App
-}catch {
+} catch {
     # Log the error to the error log file
     $errorMessage = $_.Exception.Message
     $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -89,5 +90,5 @@ try {
     Add-Content -Path "C:\ansible-action-setup.log" -Value $logEntry
 
     # Optionally, rethrow the error if you want it to be visible in the console
-    throw $_.Exception
+    exit 1
 }
