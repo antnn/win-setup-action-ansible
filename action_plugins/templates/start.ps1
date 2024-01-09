@@ -89,7 +89,5 @@ try {
     $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "$errorTime - Error: $errorMessage, $fullErrorMessage"
     Add-Content -Path "C:\ansible-action-setup.log" -Value $logEntry
-
-    # Optionally, rethrow the error if you want it to be visible in the console
     exit 1
 }
