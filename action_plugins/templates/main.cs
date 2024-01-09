@@ -597,7 +597,7 @@ internal class RegistryAction : ActionBase
 
 }
 
-
+//shell32 may fail but it tries to insert workdir and then find second time
 internal class UnzipAction : ActionBase
 {
     private string zipPath;
