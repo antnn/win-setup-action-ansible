@@ -67,7 +67,7 @@
               path: C:\Win7AndW2K8R2-KB3191566-x64
           - description: unzip Win7AndW2K8R2-KB3191566-x64 to temp\Win7AndW2K8R2-KB3191566-x64
             index: 7
-            zip: #shell32 may fail to find file it does not see our workdir
+            zip: #shell32 may fail but it tries to append workdir
               path: '\{{pkg_dir}}\Win7AndW2K8R2-KB3191566-x64.zip'
               dest: C:\Win7AndW2K8R2-KB3191566-x64
           - description: install Win7AndW2K8R2-KB3191566-x64
