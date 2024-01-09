@@ -78,4 +78,16 @@ function Enable-RemoteManagement {
         localport=5985 protocol=TCP action=allow
 }
 
-Start-App
+
+try {
+    Start-App
+}catch {
+    # Log the error to the error log file
+    $errorMessage = $_.Exception.Message
+    $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "$errorTime - Error: $errorMessage, ${$_.Exception.toString()}"
+    Add-Content -Path "C:\ansible-action-setup.log" -Value $logEntry
+
+    # Optionally, rethrow the error if you want it to be visible in the console
+    throw $_.Exception
+}

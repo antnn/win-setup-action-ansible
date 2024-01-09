@@ -408,9 +408,9 @@ internal class FileAction : ActionBase
                 break;
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -581,9 +581,9 @@ internal class RegistryAction : ActionBase
             }
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -608,7 +608,7 @@ internal class UnzipAction : ActionBase
     {
         try
         {   // setcurrentdir does not work for shell32
-            current = Directory.GetCurrentDirectory().Substring(0,2);
+            current = Directory.GetCurrentDirectory().Substring(0, 2);
             zipPath = (string)actionData["path"];
             extractPath = (string)actionData["dest"];
         }
@@ -630,7 +630,7 @@ internal class UnzipAction : ActionBase
 
         if (source == null)
         {
-            if((source = shell.NameSpace(current + zipPath))== null)
+            if ((source = shell.NameSpace(current + zipPath)) == null)
                 throw new FileNotFoundException("Zip file not found: " + zipPath
                     + " Action data: " + this.ToString());
         }
@@ -640,7 +640,7 @@ internal class UnzipAction : ActionBase
                 throw new DirectoryNotFoundException("Destination directory not found: " + extractPath
                     + " Action data: " + this.ToString());
         }
-       
+
         foreach (object item in source.Items())
         {
             destination.CopyHere(item, 8 | 16 | 512 | 1024);
@@ -649,7 +649,7 @@ internal class UnzipAction : ActionBase
     }
     public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -691,9 +691,9 @@ internal class ExeAction : ActionBase
         startInfo.WindowStyle = ProcessWindowStyle.Normal;
         Process.Start(startInfo).WaitForExit();
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -727,7 +727,7 @@ internal class MsuAction : ActionBase
     }
 
     public override void Invoke()
-    // TODO think about wusa errors, because it dettaches
+    // TODO think about wusa errors, because it may dettach
     {
         if (!File.Exists(package))
         {
@@ -755,9 +755,9 @@ internal class MsuAction : ActionBase
         }
         while (instanceCount > 0);
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -805,9 +805,9 @@ internal class MsiAction : ActionBase
                  + " Action data: " + this.ToString());
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -849,7 +849,7 @@ class DismAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key. " 
+            throw new ArgumentException("DismAction: The action dictionary must contain a 'path' key. "
             + " Action data: " + actionData.ToString(), ex);
         }
 
@@ -887,9 +887,9 @@ class DismAction : ActionBase
             }
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -995,9 +995,9 @@ internal class CopyAction : ActionBase
             CopyAll(diSourceSubDir, nextTargetSubDir);
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -1050,9 +1050,9 @@ internal class CmdAction : ActionBase
                 + " Action data: " + this.ToString());
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -1136,9 +1136,9 @@ internal class PathAction : ActionBase
                     + " Action data: " + this.ToString());
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 
@@ -1172,9 +1172,9 @@ internal class AutostartAction : ActionBase
         {
             keyName = TryGetValue<string>(actionData, "keyname", null);
             state = (State)Enum.Parse(typeof(State), TryGetValue<string>(actionData, "state", null), true);
-            interpreter = TryGetValue(actionData, "iterpreter", "");
-            target = TryGetValue(actionData, "trget", "");
-            args = TryGetValue(actionData, "ags", "");
+            interpreter = TryGetValue(actionData, "interpreter", "");
+            target = TryGetValue(actionData, "target", "");
+            args = TryGetValue(actionData, "args", "");
         }
         catch
         {
@@ -1194,7 +1194,7 @@ internal class AutostartAction : ActionBase
             {
                 switch (state)
                 {
-                    case State.Present:
+                    case State.Present: 
                         key.SetValue(keyName, value, RegistryValueKind.String);
                         break;
                     case State.Absent:
@@ -1209,9 +1209,9 @@ internal class AutostartAction : ActionBase
             }
         }
     }
-        public override string ToString()
+    public override string ToString()
     {
-        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic | 
+        FieldInfo[] properties = this.GetType().GetFields(BindingFlags.NonPublic |
             BindingFlags.Instance);
         string result = "";
 

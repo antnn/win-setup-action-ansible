@@ -16,7 +16,7 @@ from ansible.errors import (
 default_entry_point = "start.ps1"
 default_main_code_file = "main.cs"
 default_first_logon_cmd = (
-    "powershell.exe -NoExit -ExecutionPolicy Bypass -File "
+    "start powershell.exe -NoExit -ExecutionPolicy Bypass -File"
 )
 default_first_logon_cmd = (
     "cmd.exe /C for %%D in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) do @(if exist %%D:\\%s ( %s %%D:\\%s & goto :break) else (echo Not found)) & :break"
