@@ -20,7 +20,6 @@ using Microsoft.Win32;
 */
 public class WinImageBuilderAutomation
 {;
-  jsonObject->QueryInterface(__uuidof(IDispatch), (void**)&dispatch);
     public static void Main()
     {
         string packageJsonPath = "\\install.json"; //templated by Ansible
