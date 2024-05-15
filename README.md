@@ -1,3 +1,8 @@
+## Плагин для Ansible 
+- Позволяет настроить windows генерируя файл `unattend.xml`
+- Генерирует список действий которые будут исполнены скриптом `main.cs` `IAction` при самом первом запуске ОС после `winpe` (установка програм, пользователей, кастомные команды)
+- Сам playbook автоматизирует загрузку програм, распаковку  драйверов в `$WinpeDriver$` (автозагрузка winpe), формирует образ диска, который содержит все необходимое для автоустановки
+- 
 ## Ansible action plugin
 that automates the installation of prerequisites for Ansible to run on Windows and uses Ansible playbooks for configuration.
 
