@@ -13,7 +13,7 @@ then attach it to vm with windows iso
 ### Define the Playbook Hosts and Connection:
 The playbook is set to run on the local machine (127.0.0.1) with a local connection.</br>
  ##### Set Variables:</br>
- - pkg_dir: Directory name where packages will be stored (toinstall).</br>
+ - pkg_dir: Directory name where packages will be stored: `toinstall`.</br>
  - drivers_dir: Directory name for drivers `$WinpeDriver$`.</br>
 ##### Tasks:</br>
 - Create Temporary Work Directory:
