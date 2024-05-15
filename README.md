@@ -1,7 +1,8 @@
 ### Ansible action plugin
 that automates the installation of prerequisites for Ansible to run on Windows and uses Ansible playbooks for configuration.
 
-This playbook is designed to automate the setup and configuration of a Windows environment, including downloading necessary updates, installing applications, and creating a bootable ISO with all configurations and drivers pre-included.
+##### This playbook
+is designed to automate the setup and configuration of a Windows environment, including downloading necessary updates, installing applications, and creating a bootable ISO with all configurations and drivers pre-included.
 
 Run `ansible-playbook example-win7-x64.yml --extra-vars iso_output_path="/path/to/config.iso"` then attach it to vm with windows iso
 
