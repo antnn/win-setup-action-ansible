@@ -1,6 +1,8 @@
 ## Ansible action plugin
 that automates the installation of prerequisites for Ansible to run on Windows and uses Ansible playbooks for configuration.
 
+[![IMAGE ALT TEXT HERE](https://i9.ytimg.com/vi/CyjWnvdco3U/maxresdefault.jpg?sqp=COTZobIG-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBMgSCh_MA8=&rs=AOn4CLA4R6sAcCGop0rduD4075nVnI5k4w)](https://www.youtube.com/watch?v=CyjWnvdco3U&t=564s)
+
 Run </br>
 ```bash
 ansible-playbook example-win7-x64.yml --extra-vars iso_output_path="/path/to/config.iso"
