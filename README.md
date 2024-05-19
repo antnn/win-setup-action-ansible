@@ -1,7 +1,7 @@
 ## Ansible action plugin
 that automates the installation of prerequisites for Ansible to run on Windows and uses Ansible playbooks for configuration.</br>
 
-[YouTube](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s){:target="_blank"}
+[YouTube](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s)
 [![IMAGE ALT TEXT HERE](https://raw.githubusercontent.com/antnn/win-setup-action-ansible/main/docs/1.jpg)](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s)
 
 Run </br>
