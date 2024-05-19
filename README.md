@@ -2,7 +2,7 @@
 that automates the installation of prerequisites for Ansible to run on Windows and uses Ansible playbooks for configuration.</br>
 
 [YouTube](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s)
-[![IMAGE ALT TEXT HERE](https://i9.ytimg.com/vi/CyjWnvdco3U/maxresdefault.jpg?sqp=COTZobIG-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGBMgSCh_MA8=&rs=AOn4CLA4R6sAcCGop0rduD4075nVnI5k4w)](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s)
+[![IMAGE ALT TEXT HERE](https://raw.githubusercontent.com/antnn/win-setup-action-ansible/main/docs/1.jpg)](https://www.youtube.com/watch?v=CyjWnvdco3U&t=3492s)
 
 Run </br>
 ```bash
