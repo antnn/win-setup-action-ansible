@@ -6,7 +6,7 @@ that automates the installation of prerequisites for Ansible to run on Windows a
 
 Run </br>
 ```bash
-ansible-playbook example-win7-x64.yml --extra-vars iso_output_path="/path/to/config.iso"
+ansible-playbook example-win7-x64.yml --extra-vars iso_output_path="/path/to/output_config.iso"
 ```
 then attach it to vm with windows iso
 
