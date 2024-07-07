@@ -1,1 +1,1 @@
-Ansible plugin entrypoint
+Ansible plugin entrypoint `win_setup.py`
