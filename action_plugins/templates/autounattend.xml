@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
     <settings pass="windowsPE">
-        <!-->USE $WinpeDriver$</-->
+        <!-->USE
+        $WinpeDriver$</-->
         <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="x86"
             publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS"
             xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
@@ -73,12 +74,7 @@
             </DiskConfiguration>
             <ImageInstall>
                 <OSImage>
-                    <InstallFrom>
-                        <MetaData wcm:action="add">
-                            <Key>/IMAGE/NAME</Key>
-                             <Value>{{image_name}}</Value>
-                      </MetaData>
-                    </InstallFrom>
+                    {{from_image_xml_code}}
                     <InstallTo>
                         <DiskID>0</DiskID>
                         <PartitionID>2</PartitionID>
@@ -236,6 +232,7 @@
             publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS"
             xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            {{static_ip_xml_code}}
             <RegisteredOwner>{{user_name}}</RegisteredOwner>
             <OOBE>
                 <HideEULAPage>true</HideEULAPage>
