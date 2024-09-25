@@ -16,6 +16,7 @@ from ansible.errors import (
 default_entry_point = "start.ps1"
 default_main_code_file = "main.cs"
 default_first_logon_cmd = "start powershell.exe -NoExit -ExecutionPolicy Bypass -File"
+# Search for start.ps1
 default_first_logon_cmd = (
     "cmd.exe /C for %%D in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) do @(if exist %%D:\\%s ( %s %%D:\\%s & goto :break) else (echo Not found)) & :break"
     % (default_entry_point, default_first_logon_cmd, default_entry_point)
@@ -32,6 +33,7 @@ def image_name_xml_code(name):
         </InstallFrom>"""
 
 
+# TODO refactor to utilize ansible template functions
 def static_ip_xml_code(task, task_vars):
     static_ip_params = {
         "interface_identifier": "network_interface",
@@ -41,7 +43,6 @@ def static_ip_xml_code(task, task_vars):
         "dns_server_address": "static_dns_server",
     }
 
-    # Populate task_vars with values from task args
     for param, arg_name in static_ip_params.items():
         task_vars[param] = task._task.args.get(arg_name, None)
 
@@ -135,8 +136,8 @@ class ActionModule(ActionBase):
             _task_vars["first_logon_cmd"] = self._task.args.get(
                 "first_logon_cmd", default_first_logon_cmd
             )
-            
-            _task_vars['static_ip_xml_code'] = static_ip_xml_code(self)
+
+            _task_vars["static_ip_xml_code"] = static_ip_xml_code(self)
 
             _task_vars["entry_point"] = default_entry_point
             _task_vars["main_code"] = default_main_code_file
