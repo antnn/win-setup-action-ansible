@@ -41,6 +41,7 @@ def static_ip_xml_code(task, task_vars):
         "routes_prefix": "static_route_cidr",
         "next_hop_address": "static_gateway_ip",
         "dns_server_address": "static_dns_server",
+        "secondary_dns_server": "secondary_dns_server"
     }
 
     for param, arg_name in static_ip_params.items():
@@ -80,6 +81,7 @@ def static_ip_xml_code(task, task_vars):
                         <Identifier>{task_vars['interface_identifier']}</Identifier>
                         <DNSServerSearchOrder>
                             <IpAddress wcm:action="add" wcm:keyValue="1">{task_vars['dns_server_address']}</IpAddress>
+                            <IpAddress wcm:action="add" wcm:keyValue="2">{task_vars['secondary_dns_server']}</IpAddress>
                         </DNSServerSearchOrder>
                     </Interface>
                 </Interfaces>
@@ -105,6 +107,7 @@ class ActionModule(ActionBase):
             "static_route_cidr",
             "static_gateway_ip",
             "static_dns_server",
+            "static_secondary_dns_server"
         )
     )
 
