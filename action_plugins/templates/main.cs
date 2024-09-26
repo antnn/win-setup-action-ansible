@@ -19,7 +19,7 @@ using Microsoft.Win32;
 * It should continue installing after reboot skipping installed packages
 */
 public class WinImageBuilderAutomation
-{;
+{
     public static void Main()
     {
         string packageJsonPath = "\\install.json"; //templated by Ansible
