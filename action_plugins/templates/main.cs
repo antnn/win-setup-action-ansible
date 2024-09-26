@@ -1037,7 +1037,7 @@ internal class CmdAction : ActionBase
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = "/C " + command + " & exit",
+                Arguments = "/C " + command + " & exit /b %errorlevel% ",
                 WindowStyle = ProcessWindowStyle.Normal
             };
             Process process = Process.Start(startInfo);
