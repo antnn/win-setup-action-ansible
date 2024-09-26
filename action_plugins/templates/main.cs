@@ -1023,7 +1023,7 @@ internal class CmdAction : ActionBase
         }
         catch (Exception ex)
         {
-            throw new ArgumentException("CmdAction: Invalid argument or missing key"
+            throw new ArgumentException("CmdAction: Invalid argument or missing key, hint use cmd:\ncmd: 'command'"
                 + " Action data: " + actionData.ToString(), ex);
         }
     }
