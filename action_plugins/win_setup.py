@@ -55,7 +55,10 @@ def static_ip_xml_code(task, task_vars):
                 message="When configuring static IP, all related parameters must be provided. "
                 f"Missing parameters: {', '.join(missing_params)}"
             )
-    return f"""<component name="Microsoft-Windows-TCPIP" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    archs = ["x86","amd64"]
+    res = ""
+    for arch in archs:
+        res = res + f"""<component name="Microsoft-Windows-TCPIP" processorArchitecture="{arch}" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                 <Interfaces>
                     <Interface wcm:action="add">
                         <Ipv4Settings>
@@ -75,7 +78,7 @@ def static_ip_xml_code(task, task_vars):
                     </Interface>
                 </Interfaces>
             </component>
-            <component name="Microsoft-Windows-DNS-Client" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <component name="Microsoft-Windows-DNS-Client" processorArchitecture="{arch}" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                 <Interfaces>
                     <Interface wcm:action="add">
                         <Identifier>{task_vars['interface_identifier']}</Identifier>
@@ -86,6 +89,7 @@ def static_ip_xml_code(task, task_vars):
                     </Interface>
                 </Interfaces>
             </component>"""
+    return res
 
 
 class ActionModule(ActionBase):
