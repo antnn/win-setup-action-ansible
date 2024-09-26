@@ -99,7 +99,6 @@ class ActionModule(ActionBase):
         (
             "dest",
             "image_index",
-            "admin_name",
             "admin_password",
             "user_name",
             "user_password",
@@ -134,7 +133,6 @@ class ActionModule(ActionBase):
             _task_vars["from_image_xml_code"] = image_index_xml_code(
                 self._task.args.get("image_index", None)
             )
-            _task_vars["admin_name"] = self._task.args.get("admin_name", None)
             _task_vars["admin_password"] = self._task.args.get("admin_password", None)
             _task_vars["user_name"] = self._task.args.get("user_name", None)
             _task_vars["user_password"] = self._task.args.get("user_password", None)
