@@ -41,7 +41,7 @@ def static_ip_xml_code(task, task_vars):
         "routes_prefix": "static_route_cidr",
         "next_hop_address": "static_gateway_ip",
         "dns_server_address": "static_dns_server",
-        "secondary_dns_server": "secondary_dns_server"
+        "secondary_dns_server": "static_secondary_dns_server"
     }
 
     for param, arg_name in static_ip_params.items():
@@ -140,7 +140,7 @@ class ActionModule(ActionBase):
                 "first_logon_cmd", default_first_logon_cmd
             )
 
-            _task_vars["static_ip_xml_code"] = static_ip_xml_code(self)
+            _task_vars["static_ip_xml_code"] = static_ip_xml_code(self,_task_vars)
 
             _task_vars["entry_point"] = default_entry_point
             _task_vars["main_code"] = default_main_code_file
