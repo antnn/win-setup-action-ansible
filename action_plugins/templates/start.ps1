@@ -5,8 +5,27 @@ $driveLetter = $scriptPath.Substring(0, 2)
 $installJson = "$driveLetter\{{install_json}}"
 $startupPath = "$driveLetter\{{entry_point}}";
 $MainCodeFile = "$driveLetter\{{main_code}}";
-$adminUserName = "{{admin_name}}"
 $adminPassword = "{{admin_password}}"
+function Get-LocalizedAdminAccountName {
+    try {
+        # SID for the built-in Administrator account
+        $adminSID = "S-1-5-21-%-500"
+
+        # Get the Administrator account using the SID
+        $adminAccount = Get-WmiObject Win32_UserAccount -Filter "SID like '$adminSID'"
+
+        if ($adminAccount) {
+            return $adminAccount.Name
+        } else {
+            Write-Warning "Unable to find the Administrator account."
+            return $null
+        }
+    }
+    catch {
+        Write-Error "An error occurred while trying to get the Administrator account name: $_"
+        return $null
+    }
+}
 function Start-App() {
     if (-not (Test-Administrator)) {
         Start-ElevatedProcess
@@ -23,6 +42,7 @@ function Start-App() {
 }
 
 function Start-ElevatedProcess() {
+    $adminUserName = Get-LocalizedAdminAccountName
     $PWord = ConvertTo-SecureString -String $adminPassword -AsPlainText -Force
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList $adminUserName, $PWord
