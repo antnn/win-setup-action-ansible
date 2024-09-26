@@ -24,11 +24,11 @@ default_first_logon_cmd = (
 default_install_json_path = "install.json"
 
 
-def image_name_xml_code(name):
+def image_index_xml_code(index):
     return f"""<InstallFrom>
             <MetaData wcm:action="add">
-                <Key>/IMAGE/NAME</Key>
-                <Value>{name}</Value>
+                <Key>/IMAGE/INDEX</Key>
+                <Value>{index}</Value>
             </MetaData>
         </InstallFrom>"""
 
@@ -94,7 +94,7 @@ class ActionModule(ActionBase):
     _VALID_ARGS = frozenset(
         (
             "dest",
-            "image_name",
+            "image_index",
             "admin_name",
             "admin_password",
             "user_name",
@@ -127,8 +127,8 @@ class ActionModule(ActionBase):
                 raise AnsibleAction(message="install argument is not provided")
 
             _task_vars = dict()
-            _task_vars["from_image_xml_code"] = image_name_xml_code(
-                self._task.args.get("image_name", None)
+            _task_vars["from_image_xml_code"] = image_index_xml_code(
+                self._task.args.get("image_index", None)
             )
             _task_vars["admin_name"] = self._task.args.get("admin_name", None)
             _task_vars["admin_password"] = self._task.args.get("admin_password", None)
