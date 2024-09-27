@@ -130,13 +130,13 @@ try {
     $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
     $errorLine = $invocationInfo.Line.Trim()
-    
+
     $logEntry = @"
 $errorTime - Error: $errorMessage
 Full Error: $fullErrorMessage 
-`
+ 
 Line: $errorLine
-`
+ 
 Stack Trace:
 $trace
 "@
