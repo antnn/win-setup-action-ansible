@@ -116,6 +116,7 @@ try {
     $MainCodeFile = "$driveLetter\{{main_code}}";
     $adminPassword = "{{admin_password}}"
     Start-App
+    exit
 } catch  {
     $trace = $_.ScriptStackTrace
     $invocationInfo = $_.InvocationInfo
