@@ -8,6 +8,8 @@ function Get-ConfigDrive() {
                 return $driveLetter
         }
     }
+    $errorMessage = "Configuration file '$fileToFind' not found on any drive. Please ensure the config file exists and is accessible."
+    throw [System.IO.FileNotFoundException]::new($errorMessage, $fileToFind)
 }
 
 function Get-LocalizedAdminAccountName {
@@ -43,7 +45,6 @@ function Start-App() {
     if (-not (Test-RemoteManagementEnabled)) {
         Enable-RemoteManagement
     }
-    return
 }
 
 function Start-ElevatedProcess() {
@@ -52,8 +53,7 @@ function Start-ElevatedProcess() {
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList $adminUserName, $PWord
     Start-Process powershell.exe -Credential $adminCredential `
-        -ArgumentList "-NoExit -ExecutionPolicy Bypass $startupPath"
-
+        -ArgumentList "-NoExit -ExecutionPolicy Bypass $PSCommandPath"
 }
 
 function Import-DotNetAssembly() {
@@ -136,4 +136,5 @@ $trace
     Add-Content -Encoding utf8 -Path "$env:USERPROFILE\ansible-action-setup.log" -Value $logEntry
     Write-Error $logEntry
     throw
+    exit
 }
