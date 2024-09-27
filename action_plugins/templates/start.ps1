@@ -117,7 +117,7 @@ try {
     $driveLetter = Get-ConfigDrive -FileToFind $installJson;
     $installJson = "$driveLetter\$install_json"
     $startupPath = "$driveLetter\$entry_point"
-    $MainCodeFile = "$driveLetter\$main_code"
+    $MainCodeFile = "$driveLetter\$MainCodeFile";
     Start-App
     exit
 } catch  {
