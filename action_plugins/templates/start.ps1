@@ -133,7 +133,7 @@ Line: $errorLine
 Stack Trace:
 $trace
 "@
-    Add-Content -Encoding utf8 -Path "C:\ansible-action-setup.log" -Value $logEntry
+    Add-Content -Encoding utf8 -Path "$env:USERPROFILE\ansible-action-setup.log" -Value $logEntry
     Write-Error $logEntry
     throw
 }
