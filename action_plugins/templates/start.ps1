@@ -17,6 +17,15 @@ function Start-App() {
     }
 }
 
+function Start-ElevatedProcess() {
+    $adminUserName = Get-LocalizedAdminAccountName
+    $PWord = ConvertTo-SecureString -String $adminPassword -AsPlainText -Force
+    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
+        -ArgumentList $adminUserName, $PWord
+    Start-Process powershell.exe -Credential $adminCredential `
+        -ArgumentList "-NoExit -ExecutionPolicy Bypass $PSCommandPath"
+}
+
 function Get-ConfigDrive($FileToFind) {
     $drives = Get-PSDrive -PSProvider FileSystem
     foreach ($drive in $drives) {
@@ -52,15 +61,6 @@ function Get-LocalizedAdminAccountName {
     }
 }
 
-
-function Start-ElevatedProcess() {
-    $adminUserName = Get-LocalizedAdminAccountName
-    $PWord = ConvertTo-SecureString -String $adminPassword -AsPlainText -Force
-    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
-        -ArgumentList $adminUserName, $PWord
-    Start-Process powershell.exe -Credential $adminCredential `
-        -ArgumentList "-NoExit -ExecutionPolicy Bypass $PSCommandPath"
-}
 
 function Import-DotNetAssembly() {
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
@@ -115,7 +115,7 @@ function Enable-RemoteManagement {
 
 try {
     $driveLetter = Get-ConfigDrive -FileToFind $installJson;
-    $installJson = "$driveLetter\$install_json"
+    $installJson = "$driveLetter\$installjson"
     $startupPath = "$driveLetter\$entry_point"
     $MainCodeFile = "$driveLetter\$MainCodeFile";
     Start-App
