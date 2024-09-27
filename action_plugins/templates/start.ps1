@@ -1,3 +1,17 @@
+function Start-App() {
+    if (-not (Test-Administrator)) {
+        Start-ElevatedProcess
+        return
+    }
+    Import-DotNetAssembly
+    [WinImageBuilderAutomation]::EnableAdministratorAccount($adminUserName)
+    [WinImageBuilderAutomation]::AddToAutoStart($startupPath)
+    [WinImageBuilderAutomation]::Main2( $installJson, $driveLetter)
+    if (-not (Test-RemoteManagementEnabled)) {
+        Enable-RemoteManagement
+    }
+}
+
 function Get-ConfigDrive() {
     $fileToFind="{{install_json}}"
     $drives = Get-PSDrive -PSProvider FileSystem
@@ -33,19 +47,7 @@ function Get-LocalizedAdminAccountName {
         return $null
     }
 }
-function Start-App() {
-    if (-not (Test-Administrator)) {
-        Start-ElevatedProcess
-        return
-    }
-    Import-DotNetAssembly
-    [WinImageBuilderAutomation]::EnableAdministratorAccount($adminUserName)
-    [WinImageBuilderAutomation]::AddToAutoStart($startupPath)
-    [WinImageBuilderAutomation]::Main2( $installJson, $driveLetter)
-    if (-not (Test-RemoteManagementEnabled)) {
-        Enable-RemoteManagement
-    }
-}
+
 
 function Start-ElevatedProcess() {
     $adminUserName = Get-LocalizedAdminAccountName
