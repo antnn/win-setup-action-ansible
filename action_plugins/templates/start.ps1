@@ -10,12 +10,6 @@ function Get-ConfigDrive() {
     }
 }
 
-$driveLetter = Get-ConfigDrive;
-$installJson = "$driveLetter\{{install_json}}"
-$startupPath = "$driveLetter\{{entry_point}}";
-$MainCodeFile = "$driveLetter\{{main_code}}";
-$adminPassword = "{{admin_password}}"
-
 function Get-LocalizedAdminAccountName {
     try {
         # SID for the built-in Administrator account
@@ -114,6 +108,11 @@ function Enable-RemoteManagement {
 
 
 try {
+    $driveLetter = Get-ConfigDrive;
+    $installJson = "$driveLetter\{{install_json}}"
+    $startupPath = "$driveLetter\{{entry_point}}";
+    $MainCodeFile = "$driveLetter\{{main_code}}";
+    $adminPassword = "{{admin_password}}"
     Start-App
 } catch  {
     $trace = $_.ScriptStackTrace
