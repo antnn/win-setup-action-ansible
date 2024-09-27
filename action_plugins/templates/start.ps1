@@ -139,5 +139,5 @@ $trace
     Add-Content -Encoding utf8 -Path "$env:USERPROFILE\ansible-action-setup.log" -Value $logEntry
     Write-Error $logEntry
     throw
-    exit
+    
 }
