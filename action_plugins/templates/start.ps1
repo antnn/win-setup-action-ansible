@@ -134,7 +134,8 @@ try {
 $errorTime - Error: $errorMessage
 Full Error: $fullErrorMessage 
  
-Line: $errorLine
+Error Line:
++ $errorLine
  
 Stack Trace:
 $trace
