@@ -1,17 +1,11 @@
 function Get-ConfigDrive() {
-    $filesToFind = @(
-        "install.json",
-        "start.ps1",
-        "main.cs"
-    )
+    $fileToFind="{{install_json}}"
     $drives = Get-PSDrive -PSProvider FileSystem
     foreach ($drive in $drives) {
         $driveLetter = $drive.Name + ":"
-        foreach ($file in $filesToFind) {
-            $filePath = Join-Path -Path $driveLetter -ChildPath $file
+        $filePath = Join-Path -Path $driveLetter -ChildPath $fileToFind
             if (Test-Path $filePath) {
                 return $driveLetter
-            }
         }
     }
 }
