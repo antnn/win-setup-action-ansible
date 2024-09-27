@@ -1,11 +1,27 @@
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$driveLetter = $scriptPath.Substring(0, 2)
+function Get-ConfigDrive() {
+    $filesToFind = @(
+        "install.json",
+        "start.ps1",
+        "main.cs"
+    )
+    $drives = Get-PSDrive -PSProvider FileSystem
+    foreach ($drive in $drives) {
+        $driveLetter = $drive.Name + ":"
+        foreach ($file in $filesToFind) {
+            $filePath = Join-Path -Path $driveLetter -ChildPath $file
+            if (Test-Path $filePath) {
+                return $driveLetter
+            }
+        }
+    }
+}
 
+$driveLetter = Get-ConfigDrive;
+$installJson = "$driveLetter\install.json"
+$startupPath = "$driveLetter\start.ps1";
+$MainCodeFile = "$driveLetter\main.cs";
+$adminPassword = "Passw0rd!"
 
-$installJson = "$driveLetter\{{install_json}}"
-$startupPath = "$driveLetter\{{entry_point}}";
-$MainCodeFile = "$driveLetter\{{main_code}}";
-$adminPassword = "{{admin_password}}"
 function Get-LocalizedAdminAccountName {
     try {
         # SID for the built-in Administrator account
@@ -16,7 +32,8 @@ function Get-LocalizedAdminAccountName {
 
         if ($adminAccount) {
             return $adminAccount.Name
-        } else {
+        }
+        else {
             Write-Warning "Unable to find the Administrator account."
             return $null
         }
@@ -29,7 +46,7 @@ function Get-LocalizedAdminAccountName {
 function Start-App() {
     if (-not (Test-Administrator)) {
         Start-ElevatedProcess
-        exit
+        return
     }
     Import-DotNetAssembly
     [WinImageBuilderAutomation]::EnableAdministratorAccount($adminUserName)
@@ -38,7 +55,7 @@ function Start-App() {
     if (-not (Test-RemoteManagementEnabled)) {
         Enable-RemoteManagement
     }
-    exit
+    return
 }
 
 function Start-ElevatedProcess() {
@@ -54,11 +71,12 @@ function Start-ElevatedProcess() {
 function Import-DotNetAssembly() {
     $sourceCode = [System.IO.File]::ReadAllText($MainCodeFile)
     $scriptAssembly = Get-NamesOfAssembliesToLoad @("System.Web.Extensions", 
-            "System.Management")
+        "System.Management")
     $osVersion = [System.Environment]::OSVersion
     if ($osVersion.Version.Major -eq 6 -and $osVersion.Version.Minor -eq 1) {
         $language = "CSharpVersion3"
-    } else {
+    }
+    else {
         $language = "CSharp"
     }
     Add-Type -ReferencedAssemblies $scriptAssembly -TypeDefinition $sourceCode -Language $language -IgnoreWarnings
@@ -100,14 +118,29 @@ function Enable-RemoteManagement {
 }
 
 
+
 try {
     Start-App
 } catch  {
+    $trace = $_.ScriptStackTrace
+    $invocationInfo = $_.InvocationInfo
     # Log the error to the error log file
     $errorMessage = $_.Exception.Message
     $fullErrorMessage = $_.Exception.ToString()
     $errorTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "$errorTime - Error: $errorMessage, $fullErrorMessage"
-    Add-Content -Path "C:\ansible-action-setup.log" -Value $logEntry
-    exit 1
+
+    $errorLine = $invocationInfo.Line.Trim()
+    
+    $logEntry = @"
+$errorTime - Error: $errorMessage
+Full Error: $fullErrorMessage 
+`
+Line: $errorLine
+`
+Stack Trace:
+$trace
+"@
+    Add-Content -Encoding utf8 -Path "C:\ansible-action-setup.log" -Value $logEntry
+    Write-Error $logEntry
+    throw
 }
