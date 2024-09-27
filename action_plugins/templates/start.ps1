@@ -17,8 +17,7 @@ function Start-App() {
     }
 }
 
-function Get-ConfigDrive() {
-    $fileToFind="{{install_json}}"
+function Get-ConfigDrive($FileToFind) {
     $drives = Get-PSDrive -PSProvider FileSystem
     foreach ($drive in $drives) {
         $driveLetter = $drive.Name + ":"
@@ -115,10 +114,10 @@ function Enable-RemoteManagement {
 
 
 try {
-    $driveLetter = Get-ConfigDrive;
+    $driveLetter = Get-ConfigDrive -FileToFind $installJson;
     $installJson = "$driveLetter\$install_json"
-    $startupPath = "$driveLetter\$entry_point";
-    $MainCodeFile = "$driveLetter\$main_code";
+    $startupPath = "$driveLetter\$entry_point"
+    $MainCodeFile = "$driveLetter\$main_code"
     Start-App
     exit
 } catch  {
