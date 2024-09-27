@@ -1,3 +1,8 @@
+$installJson = "{{install_json}}"
+$startupPath = "{{entry_point}}"
+$MainCodeFile = "{{main_code}}"
+$adminPassword = "{{admin_password}}"
+
 function Start-App() {
     if (-not (Test-Administrator)) {
         Start-ElevatedProcess
@@ -111,10 +116,9 @@ function Enable-RemoteManagement {
 
 try {
     $driveLetter = Get-ConfigDrive;
-    $installJson = "$driveLetter\{{install_json}}"
-    $startupPath = "$driveLetter\{{entry_point}}";
-    $MainCodeFile = "$driveLetter\{{main_code}}";
-    $adminPassword = "{{admin_password}}"
+    $installJson = "$driveLetter\$install_json"
+    $startupPath = "$driveLetter\$entry_point";
+    $MainCodeFile = "$driveLetter\$main_code";
     Start-App
     exit
 } catch  {
