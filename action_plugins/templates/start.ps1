@@ -132,14 +132,13 @@ try {
 
     $logEntry = @"
 $errorTime - Error: $errorMessage
+At:
+   + $errorLine
 Full Error: $fullErrorMessage 
- 
-Error Line:
-+ $errorLine
- 
 Stack Trace:
 $trace
 "@
+
     Add-Content -Encoding utf8 -Path "$env:USERPROFILE\ansible-action-setup.log" -Value $logEntry
     Write-Error $logEntry
     throw
