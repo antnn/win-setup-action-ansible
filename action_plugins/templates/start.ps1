@@ -17,10 +17,10 @@ function Get-ConfigDrive() {
 }
 
 $driveLetter = Get-ConfigDrive;
-$installJson = "$driveLetter\install.json"
-$startupPath = "$driveLetter\start.ps1";
-$MainCodeFile = "$driveLetter\main.cs";
-$adminPassword = "Passw0rd!"
+$installJson = "$driveLetter\{{install_json}}"
+$startupPath = "$driveLetter\{{entry_point}}";
+$MainCodeFile = "$driveLetter\{{main_code}}";
+$adminPassword = "{{admin_password}}"
 
 function Get-LocalizedAdminAccountName {
     try {
