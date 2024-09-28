@@ -23,6 +23,7 @@ function Start-ElevatedProcess() {
     $adminUserName = Get-LocalizedAdminAccountName
     if ($isServer2022) {
         Start-WinServer22-Elevated-With-RunAs($adminUserName)
+        return
     }
 
     $PWord = ConvertTo-SecureString -String $adminPassword -AsPlainText -Force
