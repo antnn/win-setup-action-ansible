@@ -2,6 +2,7 @@ $installJson = "{{install_json}}"
 $startupPath = "{{entry_point}}"
 $MainCodeFile = "{{main_code}}"
 $adminPassword = "{{admin_password}}"
+$userName = "{{user_name}}"
 
 function Start-App() {
     if (-not (Test-Administrator)) {
@@ -18,7 +19,12 @@ function Start-App() {
 }
 
 function Start-ElevatedProcess() {
+    $isServer2022 = $osInfo.Caption -like "*Server 2022*"
     $adminUserName = Get-LocalizedAdminAccountName
+    if ($isServer2022) {
+        Start-WinServer22-Elevated-With-RunAs($adminUserName)
+    }
+
     $PWord = ConvertTo-SecureString -String $adminPassword -AsPlainText -Force
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential `
         -ArgumentList $adminUserName, $PWord
@@ -31,8 +37,8 @@ function Get-ConfigDrive($FileToFind) {
     foreach ($drive in $drives) {
         $driveLetter = $drive.Name + ":"
         $filePath = Join-Path -Path $driveLetter -ChildPath $fileToFind
-            if (Test-Path $filePath) {
-                return $driveLetter
+        if (Test-Path $filePath) {
+            return $driveLetter
         }
     }
     $errorMessage = "Configuration file '$fileToFind' not found on any drive. Please ensure the config file exists and is accessible."
@@ -112,9 +118,11 @@ function Enable-RemoteManagement {
 }
 
 
+function Start-WinServer22-Elevated-With-RunAs($adminUserName) {
+    
 
-# Workaround for windows server 2022 elevated privilegies 
-$csharpCode = @"
+    # Workaround for windows server 2022 elevated privilegies 
+    $csharpCode = @"
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -191,12 +199,15 @@ public class RunAsCredentialManager
 }
 "@
 
-# Add the C# type to the PowerShell session
-Add-Type -TypeDefinition $csharpCode -Language CSharp
+    # Add the C# type to the PowerShell session
+    Add-Type -TypeDefinition $csharpCode -Language CSharp
 
-#use with /runas /cred
-[RunAsCredentialManager]::WriteCredential("Mainserver\Администратор", "MainServer\Ieuser", "Passw0rd!")
+    # To use with /runas /cred
+    [RunAsCredentialManager]::WriteCredential("$env:COMPUTERNAME\$adminUserName", "$env:COMPUTERNAME\$userName", "$adminPassword")
 
+    runas /savecred /user:"$env:COMPUTERNAME\$adminUserName" powershell.exe -ArgumentList "-NoExit -ExecutionPolicy Bypass $PSCommandPath"
+
+}
 
 try {
     $driveLetter = Get-ConfigDrive -FileToFind $installJson;
@@ -205,7 +216,8 @@ try {
     $MainCodeFile = "$driveLetter\$MainCodeFile";
     Start-App
     exit
-} catch  {
+}
+catch {
     $trace = $_.ScriptStackTrace
     $invocationInfo = $_.InvocationInfo
     # Log the error to the error log file
