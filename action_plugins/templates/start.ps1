@@ -119,11 +119,11 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public class CredentialManager
+public class RunAsCredentialManager
 {
     static void Main()
     {
-        CredentialManager.WriteCredential("Mainserver\\Администратор", "MainServer\\Ieuser", "Passw0rd!");
+        RunAsCredentialManager.WriteCredential("Mainserver\\Администратор", "MainServer\\Ieuser", "Passw0rd!");
     }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CREDENTIAL
@@ -195,7 +195,7 @@ public class CredentialManager
 Add-Type -TypeDefinition $csharpCode -Language CSharp
 
 #use with /runas /cred
-[CredentialManager]::WriteCredential("Mainserver\Администратор", "MainServer\Ieuser", "Passw0rd!")
+[RunAsCredentialManager]::WriteCredential("Mainserver\Администратор", "MainServer\Ieuser", "Passw0rd!")
 
 
 try {
