@@ -2,7 +2,6 @@ $installJson = "{{install_json}}"
 $startupPath = "{{entry_point}}"
 $MainCodeFile = "{{main_code}}"
 $adminPassword = "{{admin_password}}"
-$userName = "{{user_name}}"
 
 function Start-App() {
     if (-not (Test-Administrator)) {
@@ -19,6 +18,7 @@ function Start-App() {
 }
 
 function Start-ElevatedProcess() {
+    $osInfo = Get-CimInstance Win32_OperatingSystem
     $isServer2022 = $osInfo.Caption -like "*Server 2022*"
     $adminUserName = Get-LocalizedAdminAccountName
     if ($isServer2022) {
@@ -119,8 +119,6 @@ function Enable-RemoteManagement {
 
 
 function Start-WinServer22-Elevated-With-RunAs($adminUserName) {
-    
-
     # Workaround for windows server 2022 elevated privilegies 
     $csharpCode = @"
 using System;
@@ -131,7 +129,7 @@ public class RunAsCredentialManager
 {
     static void Main()
     {
-        RunAsCredentialManager.WriteCredential("Mainserver\\Администратор", "MainServer\\Ieuser", "Passw0rd!");
+        RunAsCredentialManager.WriteCredential("Mainserver\\Administrator", "MainServer\\Ieuser", "Passw0rd!");
     }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CREDENTIAL
@@ -203,9 +201,9 @@ public class RunAsCredentialManager
     Add-Type -TypeDefinition $csharpCode -Language CSharp
 
     # To use with /runas /cred
-    [RunAsCredentialManager]::WriteCredential("$env:COMPUTERNAME\$adminUserName", "$env:COMPUTERNAME\$userName", "$adminPassword")
+    [RunAsCredentialManager]::WriteCredential("$env:COMPUTERNAME\$adminUserName", "$env:COMPUTERNAME\$adminUserName", "$adminPassword")
 
-    runas /savecred /user:"$env:COMPUTERNAME\$adminUserName" powershell.exe -ArgumentList "-NoExit -ExecutionPolicy Bypass $PSCommandPath"
+    runas /savecred /user:"$env:COMPUTERNAME\$adminUserName" "powershell.exe -NoExit -ExecutionPolicy Bypass $PSCommandPath"
 
 }
 
