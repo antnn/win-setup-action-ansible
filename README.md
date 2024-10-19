@@ -9,7 +9,7 @@ ansible-playbook example-win7-x64.yml --extra-vars iso_output_path="/path/to/out
 then attach it to vm with windows iso
 
 ### Windows Part
-[In this repo in C#](https://github.com/antnn/win-setup-action-ansible/blob/main/action_plugins/templates/main.cs)
+[in C#](https://github.com/antnn/win-setup-action-ansible/blob/main/action_plugins/templates/main.cs)
 
 ### Define the Playbook Hosts and Connection:
 This playbook is designed to automate the setup and configuration of a Windows environment, including downloading necessary updates, installing applications, and creating a bootable ISO with all configurations and drivers pre-included.
